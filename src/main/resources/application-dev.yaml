@@ -18,13 +18,13 @@ app:
   kafka:
     bootstrap-servers:
       - ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
-    group-id: ${KAFKA_GROUP_ID:backend-dev}
+    group-id: ${KAFKA_GROUP_ID:assembly-dev}
     auto-offset-reset: ${KAFKA_AUTO_OFFSET_RESET:earliest}
 
 logging:
   level:
     root: info
-    com.aims.backend: debug
+    com.aims.assembly: debug
     org.hibernate.SQL: debug
   file:
     path: ${LOG_PATH:logs/dev}
@@ -32,6 +32,6 @@ logging:
 management:
   health:
     redis:
-      enabled: false
+      enabled: true
     kafka:
       enabled: false

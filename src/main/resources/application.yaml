@@ -23,9 +23,12 @@ spring:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
 
 management:
+  endpoint:
+    health:
+      show-details: always
   health:
     redis:
-      enabled: false
+      enabled: true
     kafka:
       enabled: false
 
@@ -57,14 +60,14 @@ app:
   kafka:
     bootstrap-servers:
       - ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
-    group-id: ${KAFKA_GROUP_ID:backend-local}
+    group-id: ${KAFKA_GROUP_ID:assembly-local}
     auto-offset-reset: ${KAFKA_AUTO_OFFSET_RESET:earliest}
 
 logging:
   config: classpath:logback-spring.xml
 
 jwt:
-  secret-key: ${JWT_SECRET_KEY:backend-service-local-jwt-secret-key-must-be-at-least-32-bytes}
+  secret-key: ${JWT_SECRET_KEY:assembly-service-local-jwt-secret-key-must-be-at-least-32-bytes}
   expiration:
     access: ${JWT_ACCESS_EXPIRATION:3600000}
     refresh: ${JWT_REFRESH_EXPIRATION:1209600000}
