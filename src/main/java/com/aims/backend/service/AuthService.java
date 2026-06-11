@@ -18,7 +18,10 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Period;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -35,6 +38,22 @@ public class AuthService {
                 new UsernamePasswordAuthenticationToken(loginDTO.getEmail(), loginDTO.getPassword())
         );
 
+        Optional<User> userOptional = userRepository.findByEmail(loginDTO.getEmail());
+        User user = userOptional.get();
+
+        if (user.getRole() == UserRole.JUNIOR) {
+            LocalDateTime createdAt = user.getCreatedAt();
+            if (createdAt != null) {
+                int yearsSinceRegistration = Period.between(createdAt.toLocalDate(), LocalDate.now()).getYears();
+                int currentTotalWorkExperience = user.getWorkExperience() + yearsSinceRegistration;
+
+                if (currentTotalWorkExperience >= 6) {
+                    user.setRole(UserRole.SENIOR);
+                    userRepository.save(user);
+                }
+            }
+        }
+        
         return tokenProvider.generateTokens(authentication);
     }
 
@@ -45,17 +64,25 @@ public class AuthService {
 
         Long lastEmpNo = userRepository.findTopByOrderByEmpNoDesc()
                 .map(User::getEmpNo)
-                .orElse(20260000L); 
+                .orElse(20260000L);
 
         Long newEmpNo = lastEmpNo + 1;
 
         String encodedPassword = bCryptPasswordEncoder.encode(request.getPassword());
 
+        UserRole determinedRole;
+        if (request.getWorkExperience() >= 6) {
+            determinedRole = UserRole.SENIOR;
+        } else {
+            determinedRole = UserRole.JUNIOR;
+        }
+
         User newUser = User.builder()
                 .name(request.getName())
                 .email(request.getEmail())
                 .password(encodedPassword)
-                .role(UserRole.valueOf(request.getRole().toUpperCase()))
+                .workExperience(request.getWorkExperience())
+                .role(determinedRole)
                 .empNo(newEmpNo)
                 .build();
 
