@@ -1,3 +1,6 @@
+server:
+  port: 8081
+
 spring:
   config:
     import: optional:file:.env[.properties]
@@ -37,16 +40,16 @@ app:
     main:
       driver-class-name: ${MAIN_DB_DRIVER_CLASS_NAME:com.mysql.cj.jdbc.Driver}
       jdbc-url: ${MAIN_DB_JDBC_URL:jdbc:mysql://localhost:3306/maindb?serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
-      username: ${MAIN_DB_USERNAME:root}
-      password: ${MAIN_DB_PASSWORD:root}
+      username: ${MAIN_DB_USERNAME:admin}
+      password: ${MAIN_DB_PASSWORD:change}
       maximum-pool-size: ${MAIN_DB_MAXIMUM_POOL_SIZE:10}
       minimum-idle: ${MAIN_DB_MINIMUM_IDLE:2}
       pool-name: ${MAIN_DB_POOL_NAME:main-db-pool}
     sample:
       driver-class-name: ${SAMPLE_DB_DRIVER_CLASS_NAME:com.mysql.cj.jdbc.Driver}
       jdbc-url: ${SAMPLE_DB_JDBC_URL:jdbc:mysql://localhost:3306/sampledb?serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
-      username: ${SAMPLE_DB_USERNAME:root}
-      password: ${SAMPLE_DB_PASSWORD:root}
+      username: ${SAMPLE_DB_USERNAME:admin}
+      password: ${SAMPLE_DB_PASSWORD:change}
       maximum-pool-size: ${SAMPLE_DB_MAXIMUM_POOL_SIZE:5}
       minimum-idle: ${SAMPLE_DB_MINIMUM_IDLE:1}
       pool-name: ${SAMPLE_DB_POOL_NAME:sample-db-pool}
