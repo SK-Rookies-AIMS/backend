@@ -24,7 +24,7 @@ public class MainPageController {
     private final MainPageService mainPageService;
     private final TokenProvider tokenProvider;
 
-    @Operation(summary = "�ъ�⑹�� ���� 議고��", description = "���� ��媛��� �ы�⑦���� 3媛��� �ъ�⑹�� ������ 議고���⑸����.")
+    @Operation(summary = "사용자 작업 조회", description = "사용자별로 저장된 3개의 작업을 조회합니다.")
     @GetMapping("/task-user")
     public ApiResponse<List<UserTaskResponse.MainPageTaskDTO>> getUserTasks(HttpServletRequest request) {
         String accessToken = TokenProvider.resolveToken(request);
