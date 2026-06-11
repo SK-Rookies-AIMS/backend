@@ -2,6 +2,8 @@ package com.aims.backend.config.jwt;
 
 import com.aims.backend.dto.auth.TokenResponse;
 import com.aims.backend.mapper.TokenMapper;
+import com.aims.backend.service.CustomUserDetailsService;
+
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
@@ -43,15 +45,15 @@ public class TokenProvider {
                 .map(GrantedAuthority::getAuthority)
                 .orElse("ROLE_USER");
 
-        Long userId = null;
+        Long EmpNo = null;
         Object principal = authentication.getPrincipal();
-        if (principal instanceof JwtPrincipal jwtPrincipal) {
-            userId = jwtPrincipal.userId();
+        if (principal instanceof CustomUserDetailsService.UserPrincipal userPrincipal) {
+            EmpNo = userPrincipal.getEmpNo();
         }
 
         Date now = new Date();
-        String accessToken = createToken(email, role, userId, now, jwtProperties.getExpiration().getAccess());
-        String refreshToken = createToken(email, role, userId, now, jwtProperties.getExpiration().getRefresh());
+        String accessToken = createToken(email, role, EmpNo, now, jwtProperties.getExpiration().getAccess());
+        String refreshToken = createToken(email, role, EmpNo, now, jwtProperties.getExpiration().getRefresh());
 
         return TokenMapper.toTokenDTO(
                 accessToken,
@@ -94,10 +96,10 @@ public class TokenProvider {
         Claims claims = parseClaims(token);
         String email = claims.getSubject();
         String role = claims.get(JwtConstants.ROLE_CLAIM, String.class);
-        Long userId = claims.get(JwtConstants.USER_ID_CLAIM, Long.class);
+        Long EmpNo = claims.get(JwtConstants.EMP_NO_CLAIM, Long.class);
 
         Collection<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(role));
-        JwtPrincipal principal = new JwtPrincipal(userId, email, role);
+        JwtPrincipal principal = new JwtPrincipal(EmpNo, email, role);
 
         return new UsernamePasswordAuthenticationToken(principal, token, authorities);
     }
@@ -110,8 +112,8 @@ public class TokenProvider {
         return parseClaims(token).get(JwtConstants.ROLE_CLAIM, String.class);
     }
 
-    public Long extractUserId(String token) {
-        return parseClaims(token).get(JwtConstants.USER_ID_CLAIM, Long.class);
+    public Long extractEmpNo(String token) {
+        return parseClaims(token).get(JwtConstants.EMP_NO_CLAIM, Long.class);
     }
 
     public Claims extractAllClaims(String token) throws ExpiredJwtException {
@@ -134,10 +136,10 @@ public class TokenProvider {
         Claims claims = parseClaims(refreshToken);
         String email = claims.getSubject();
         String role = claims.get(JwtConstants.ROLE_CLAIM, String.class);
-        Long userId = claims.get(JwtConstants.USER_ID_CLAIM, Long.class);
+        Long EmpNo = claims.get(JwtConstants.EMP_NO_CLAIM, Long.class);
 
         Date now = new Date();
-        String newAccessToken = createToken(email, role, userId, now, jwtProperties.getExpiration().getAccess());
+        String newAccessToken = createToken(email, role, EmpNo, now, jwtProperties.getExpiration().getAccess());
 
         return TokenMapper.toTokenDTO(
                 newAccessToken,
@@ -151,11 +153,11 @@ public class TokenProvider {
         return parseClaims(token).getExpiration();
     }
 
-    private String createToken(String email, String role, Long userId, Date issuedAt, long expirationMillis) {
+    private String createToken(String email, String role, Long EmpNo, Date issuedAt, long expirationMillis) {
         return Jwts.builder()
                 .subject(email)
                 .claim(JwtConstants.ROLE_CLAIM, role)
-                .claim(JwtConstants.USER_ID_CLAIM, userId)
+                .claim(JwtConstants.EMP_NO_CLAIM, EmpNo)
                 .issuedAt(issuedAt)
                 .expiration(new Date(issuedAt.getTime() + expirationMillis))
                 .signWith(getSigningKey())
@@ -170,7 +172,7 @@ public class TokenProvider {
                 .getPayload();
     }
 
-    public record JwtPrincipal(Long userId, String email, String role) {
+    public record JwtPrincipal(Long EmpNo, String email, String role) {
 
         public User toSpringUser() {
             return new User(email, "", List.of(new SimpleGrantedAuthority(role)));
