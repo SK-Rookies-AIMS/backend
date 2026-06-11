@@ -9,5 +9,5 @@ public class SignUpRequest {
     private String name;
     private String email;
     private String password;
-    private String role; // JUNIOR or SENIOR
+    private String role; // JUNIOR, SENIOR
 }

@@ -9,5 +9,5 @@ import java.util.Optional;
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmail(String email);
-    Optional<User> findTopByOrderByEmpNoDesc(); // Added to get the user with the highest empNo
+    Optional<User> findTopByOrderByEmpNoDesc();
 }

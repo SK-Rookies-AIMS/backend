@@ -1,9 +1,9 @@
 package com.aims.backend.controller;
 
 import com.aims.backend.common.response.ApiResponse;
-import com.aims.backend.domain.user.User; // Added for signUp return type
+import com.aims.backend.domain.user.User;
 import com.aims.backend.dto.auth.LoginRequest;
-import com.aims.backend.dto.auth.SignUpRequest; // Added for signUp
+import com.aims.backend.dto.auth.SignUpRequest;
 import com.aims.backend.dto.auth.TokenResponse;
 import com.aims.backend.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;

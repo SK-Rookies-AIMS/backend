@@ -29,7 +29,6 @@ public class MainPageController {
     public ApiResponse<List<UserTaskResponse.MainPageTaskDTO>> getUserTasks(HttpServletRequest request) {
         String accessToken = TokenProvider.resolveToken(request);
         if (accessToken == null) {
-            // Handle case where token is missing or invalid
             return ApiResponse.failure("Access token is missing or invalid.", null);
         }
 

@@ -22,7 +22,7 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
-@Table(name = "user_task") // Keep table name as user_task
+@Table(name = "user_task")
 public class UserTask extends BaseEntity {
 
     @Id

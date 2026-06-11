@@ -14,7 +14,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter; // Added for password setting
+import lombok.Setter;
 
 @Entity
 @Getter
@@ -22,17 +22,17 @@ import lombok.Setter; // Added for password setting
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
-@Table(name = "users") // Assuming table name is 'users'
+@Table(name = "users")
 public class User extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id; // New primary key 'id'
+    private Long id;
 
-    @Column(name = "emp_no", nullable = false, unique = true) // emp_no as a unique column
-    private Long empNo; // Changed from EmpNo, no longer @Id
+    @Column(name = "emp_no", nullable = false, unique = true)
+    private Long empNo;
 
-    @Column(name = "name", nullable = false, length = 255) // New name field
+    @Column(name = "name", nullable = false, length = 255)
     private String name;
 
     @Column(name = "email", nullable = false, unique = true, length = 255)
@@ -43,5 +43,5 @@ public class User extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false, length = 20)
-    private UserRole role; // Assuming roles for users
+    private UserRole role;
 }
