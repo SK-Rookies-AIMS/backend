@@ -20,5 +20,8 @@ public class TestResponse {
 
         @Schema(description = "이메일", example = "user@example.com")
         private String email;
+
+        @Schema(description = "사원번호", example = "EMP001")
+        private String empNo;
     }
 }

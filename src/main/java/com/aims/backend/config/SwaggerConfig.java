@@ -14,8 +14,8 @@ public class SwaggerConfig {
 	public OpenAPI openAPI() {
 		return new OpenAPI()
 				.info(new Info()
-						.title("AIMS 제조 서비스 API")
-						.description("AIMS 제조 서비스 API documentation")
+						.title("AIMS main backend 서비스 API")
+						.description("AIMS main backend(event, agv, environment, auth, gateway) 서비스 API documentation")
 						.version("v1"))
 				.addServersItem(new Server().url("/"));
 	}
