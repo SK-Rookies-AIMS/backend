@@ -37,12 +37,12 @@ public class MainPageController {
             return ApiResponse.failure("Invalid authentication principal.", null);
         }
 
-        Long EmpNo = jwtPrincipal.EmpNo();
-        if (EmpNo == null) {
-            return ApiResponse.failure("Employee number not found in token.", null);
+        Long id = jwtPrincipal.id();
+        if (id == null) {
+            return ApiResponse.failure("User ID not found in token.", null);
         }
 
-        List<UserTaskResponse.MainPageTaskDTO> userTasks = mainPageService.getUserTasks(EmpNo);
+        List<UserTaskResponse.MainPageTaskDTO> userTasks = mainPageService.getUserTasks(id);
         return ApiResponse.success(userTasks, "사용자 작업 조회 성공입니다.");
     }
 }

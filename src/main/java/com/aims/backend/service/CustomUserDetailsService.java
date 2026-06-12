@@ -40,6 +40,10 @@ public class CustomUserDetailsService implements UserDetailsService {
             return user.getEmpNo();
         }
 
+        public Long getId() {
+            return user.getId();
+        }
+
         public String getEmail() {
             return user.getEmail();
         }
