@@ -13,3 +13,7 @@ management:
       enabled: true
     kafka:
       enabled: false
+
+cors:
+  allowedOrigins:
+    - http://localhost:5173
