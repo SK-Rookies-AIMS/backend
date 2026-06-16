@@ -12,9 +12,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/**
- * 메인 대시보드 API
- */
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/main")
@@ -22,10 +19,6 @@ public class DashboardController {
 
     private final DashboardService dashboardService;
 
-    /**
-     * AGV 상태 현황 조회
-     * 운행중(MOVING), 대기중(WAITING), 복귀중(RETURNING) 상태별 AGV 수를 반환한다.
-     */
     @GetMapping("/agv-status")
     public ApiResponse<AgvStatusSummaryResponse> getAgvStatusSummary() {
 
@@ -34,22 +27,6 @@ public class DashboardController {
         );
     }
 
-    /**
-     * 각 AGV 상태별 개수 조회
-     * MOVING, WAITING, RETURNING 상태별 AGV 개수를 반환한다.
-     */
-    @GetMapping("/agv-status-counts")
-    public ApiResponse<List<AgvStatusCountResponse>> getAgvStatusCounts() {
-        return ApiResponse.success(
-                dashboardService.getAgvStatusCounts()
-        );
-    }
-
-    /**
-     * 공정 흐름도 조회
-     * 공정 간 이동 중인 AGV 목록을 조회한다.
-     * 프론트는 진행률(progressRate)을 기반으로 AGV 위치를 계산하여 표시한다.
-     */
     @GetMapping("/process-flow")
     public ApiResponse<ProcessFlowResponse> getProcessFlow() {
 

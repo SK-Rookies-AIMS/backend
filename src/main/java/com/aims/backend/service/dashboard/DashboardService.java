@@ -12,22 +12,12 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-/**
- * AGV 현황
- * 공정 흐름도
- * 관련 데이터를 제공한다.
- */
 @Service
 @RequiredArgsConstructor
 public class DashboardService {
 
     private final AgvOperationRepository agvOperationRepository;
 
-    /**
-     * AGV 상태 현황 조회
-     * MOVING, WAITING, RETURNING
-     * 상태별 개수를 집계한다.
-     */
     public AgvStatusSummaryResponse getAgvStatusSummary() {
 
         long totalCount =
@@ -54,13 +44,6 @@ public class DashboardService {
                 waitingCount,
                 returningCount
         );
-    }
-
-    /**
-     * 각 AGV 상태별 개수를 반환한다.
-     */
-    public List<AgvStatusCountResponse> getAgvStatusCounts() {
-        return agvOperationRepository.countAllAgvStatus();
     }
 
     /**
