@@ -1,6 +1,7 @@
 package com.aims.backend.controller.dashboard;
 
 import com.aims.backend.common.response.ApiResponse;
+import com.aims.backend.dto.dashboard.AgvStatusCountResponse;
 import com.aims.backend.dto.dashboard.AgvStatusSummaryResponse;
 import com.aims.backend.dto.dashboard.ProcessFlowResponse;
 import com.aims.backend.service.dashboard.DashboardService;
@@ -8,6 +9,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /**
  * 메인 대시보드 API
@@ -28,6 +31,17 @@ public class DashboardController {
 
         return ApiResponse.success(
                 dashboardService.getAgvStatusSummary()
+        );
+    }
+
+    /**
+     * 각 AGV 상태별 개수 조회
+     * MOVING, WAITING, RETURNING 상태별 AGV 개수를 반환한다.
+     */
+    @GetMapping("/agv-status-counts")
+    public ApiResponse<List<AgvStatusCountResponse>> getAgvStatusCounts() {
+        return ApiResponse.success(
+                dashboardService.getAgvStatusCounts()
         );
     }
 
