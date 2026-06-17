@@ -4,7 +4,7 @@ import com.aims.backend.common.response.ApiResponse;
 import com.aims.backend.dto.dashboard.AgvStatusCountResponse;
 import com.aims.backend.dto.dashboard.AgvStatusSummaryResponse;
 import com.aims.backend.dto.dashboard.ProcessFlowResponse;
-import com.aims.backend.dto.dashboard.StatusCountResponse; // Added import
+import com.aims.backend.dto.dashboard.StatusCountResponse;
 import com.aims.backend.service.dashboard.DashboardService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -36,7 +36,7 @@ public class DashboardController {
         );
     }
 
-    @GetMapping("/equipment-status-counts") // Added endpoint
+    @GetMapping("/equipment-status-counts")
     public ApiResponse<List<StatusCountResponse>> getEquipmentStatusCounts() {
         return ApiResponse.success(
                 dashboardService.getEquipmentStatusCounts()

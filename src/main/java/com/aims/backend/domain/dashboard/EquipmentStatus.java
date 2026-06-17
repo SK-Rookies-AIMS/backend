@@ -21,5 +21,4 @@ public class EquipmentStatus extends BaseEntity {
     @Column(nullable = false)
     private String status;
 
-    // You can add other fields as necessary for the equipment status table
 }

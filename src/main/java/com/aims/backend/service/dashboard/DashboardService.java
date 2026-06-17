@@ -5,21 +5,21 @@ import com.aims.backend.domain.dashboard.enums.AgvStatus;
 import com.aims.backend.dto.dashboard.AgvOperationResponse;
 import com.aims.backend.dto.dashboard.AgvStatusSummaryResponse;
 import com.aims.backend.dto.dashboard.ProcessFlowResponse;
-import com.aims.backend.dto.dashboard.StatusCountResponse; // Added import
+import com.aims.backend.dto.dashboard.StatusCountResponse;
 import com.aims.backend.repository.dashboard.AgvOperationRepository;
-import com.aims.backend.repository.dashboard.EquipmentStatusRepository; // Added import
+import com.aims.backend.repository.dashboard.EquipmentStatusRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.stream.Collectors; // Added import
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class DashboardService {
 
     private final AgvOperationRepository agvOperationRepository;
-    private final EquipmentStatusRepository equipmentStatusRepository; // Added
+    private final EquipmentStatusRepository equipmentStatusRepository;
 
     public AgvStatusSummaryResponse getAgvStatusSummary() {
 

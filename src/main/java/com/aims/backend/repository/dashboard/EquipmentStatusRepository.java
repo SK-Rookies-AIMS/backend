@@ -10,8 +10,6 @@ import java.util.List;
 @Repository
 public interface EquipmentStatusRepository extends JpaRepository<EquipmentStatus, Long> {
 
-    // Custom query to count the occurrences of each status
-    // Returns a List of Object arrays, where each array contains [status (String), count (Long)]
     @Query("SELECT es.status, COUNT(es) FROM EquipmentStatus es GROUP BY es.status")
     List<Object[]> countAllByStatus();
 }
