@@ -14,4 +14,5 @@ public interface AgvOperationRepository
     long countByAgvStatus(AgvStatus agvStatus);
 
     @Query("SELECT new com.aims.backend.dto.dashboard.AgvStatusCountResponse(ao.agvStatus, COUNT(ao.id)) FROM AgvOperation ao GROUP BY ao.agvStatus")
+    List<AgvStatusCountResponse> countAgvOperationsByStatus();
 }
