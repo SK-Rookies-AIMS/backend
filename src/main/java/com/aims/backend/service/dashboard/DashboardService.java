@@ -3,20 +3,23 @@ package com.aims.backend.service.dashboard;
 import com.aims.backend.domain.dashboard.AgvOperation;
 import com.aims.backend.domain.dashboard.enums.AgvStatus;
 import com.aims.backend.dto.dashboard.AgvOperationResponse;
-import com.aims.backend.dto.dashboard.AgvStatusCountResponse;
 import com.aims.backend.dto.dashboard.AgvStatusSummaryResponse;
 import com.aims.backend.dto.dashboard.ProcessFlowResponse;
+import com.aims.backend.dto.dashboard.StatusCountResponse; // Added import
 import com.aims.backend.repository.dashboard.AgvOperationRepository;
+import com.aims.backend.repository.dashboard.EquipmentStatusRepository; // Added import
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.stream.Collectors; // Added import
 
 @Service
 @RequiredArgsConstructor
 public class DashboardService {
 
     private final AgvOperationRepository agvOperationRepository;
+    private final EquipmentStatusRepository equipmentStatusRepository; // Added
 
     public AgvStatusSummaryResponse getAgvStatusSummary() {
 
@@ -60,6 +63,20 @@ public class DashboardService {
                         .toList();
 
         return new ProcessFlowResponse(agvs);
+    }
+
+    /**
+     * 설비 상태별 개수 조회
+     * euqipment_status 테이블에서 status 컬럼의 각 값들의 개수를 반환한다.
+     */
+    public List<StatusCountResponse> getEquipmentStatusCounts() {
+        List<Object[]> statusCounts = equipmentStatusRepository.countAllByStatus();
+        return statusCounts.stream()
+                .map(result -> StatusCountResponse.builder()
+                        .status((String) result[0])
+                        .count((Long) result[1])
+                        .build())
+                .collect(Collectors.toList());
     }
 
     /**
