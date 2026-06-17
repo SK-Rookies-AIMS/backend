@@ -52,6 +52,9 @@ dependencies {
 	implementation "org.opensearch.client:opensearch-java:${opensearchJavaVersion}"
 	implementation 'org.apache.httpcomponents.client5:httpclient5'
 
+    // WebSocket
+    implementation 'org.springframework.boot:spring-boot-starter-websocket'
+
 	// QueryDSL
 	implementation "com.querydsl:querydsl-jpa:${querydslVersion}:jakarta"
 	annotationProcessor "com.querydsl:querydsl-apt:${querydslVersion}:jakarta"

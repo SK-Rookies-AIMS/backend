@@ -4,8 +4,17 @@ import com.aims.backend.domain.dashboard.AgvOperation;
 import com.aims.backend.domain.dashboard.enums.AgvStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface AgvOperationRepository
-        extends JpaRepository<AgvOperation, Long> {
+import java.util.List;
+import java.util.Optional;
+
+public interface AgvOperationRepository extends JpaRepository<AgvOperation, Long> {
 
     long countByAgvStatus(AgvStatus agvStatus);
+
+    List<AgvOperation> findByAgvStatusIn(List<AgvStatus> statuses);
+
+    Optional<AgvOperation> findFirstByRouteCodeAndAgvStatusOrderByLaneNoAsc(
+            String routeCode,
+            AgvStatus agvStatus
+    );
 }
