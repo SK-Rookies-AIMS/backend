@@ -198,3 +198,6 @@ jobs:
               --all-containers=true \
               --tail=200 \
               --prefix=true || true
+
+            exit 1
+          fi
