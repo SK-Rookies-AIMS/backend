@@ -67,60 +67,109 @@ jobs:
           docker push "$IMAGE_URI"
           echo "image_uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
 
-      - name: Update kubeconfig
+      - name: Update kubeconfig and ensure namespace
         run: |
           aws eks update-kubeconfig \
             --region "$AWS_REGION" \
             --name "$EKS_CLUSTER_NAME"
 
+          kubectl create namespace "$NAMESPACE" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Load deploy parameters from SSM
         run: |
-          CERTIFICATE_ARN=$(aws ssm get-parameter --name "/aims/dev/acm/certificate-arn" --query "Parameter.Value" --output text)
-          ALB_SECURITY_GROUPS=$(aws ssm get-parameter --name "/aims/dev/alb/security-groups" --query "Parameter.Value" --output text)
-          RDS_SECRET_ARN=$(aws ssm get-parameter --name "/aims/dev/rds/secret-arn" --query "Parameter.Value" --output text)
+          CERTIFICATE_ARN=$(aws ssm get-parameter \
+            --name "/aims/dev/acm/certificate-arn" \
+            --query "Parameter.Value" \
+            --output text)
+
+          ALB_SECURITY_GROUPS=$(aws ssm get-parameter \
+            --name "/aims/dev/alb/security-groups" \
+            --query "Parameter.Value" \
+            --output text)
+
+          RDS_SECRET_ARN=$(aws ssm get-parameter \
+            --name "/aims/dev/rds/secret-arn" \
+            --query "Parameter.Value" \
+            --output text)
+
+          RDS_HOST=$(aws ssm get-parameter \
+            --name "/aims/dev/backend/rds-host" \
+            --query "Parameter.Value" \
+            --output text)
+
+          RDS_PORT=$(aws ssm get-parameter \
+            --name "/aims/dev/backend/rds-port" \
+            --query "Parameter.Value" \
+            --output text)
+
+          MAIN_DB_NAME=$(aws ssm get-parameter \
+            --name "/aims/dev/backend/main-db-name" \
+            --query "Parameter.Value" \
+            --output text)
+
+          SAMPLE_DB_NAME=$(aws ssm get-parameter \
+            --name "/aims/dev/backend/sample-db-name" \
+            --query "Parameter.Value" \
+            --output text)
+
+          JWT_SECRET_KEY=$(aws ssm get-parameter \
+            --name "/aims/dev/backend/jwt-secret-key" \
+            --with-decryption \
+            --query "Parameter.Value" \
+            --output text)
+
+          for VALUE in "$CERTIFICATE_ARN" "$ALB_SECURITY_GROUPS" "$RDS_SECRET_ARN" "$RDS_HOST" "$RDS_PORT" "$MAIN_DB_NAME" "$SAMPLE_DB_NAME" "$JWT_SECRET_KEY"; do
+            if [ -z "$VALUE" ] || [ "$VALUE" = "None" ]; then
+              echo "Required SSM parameter is empty"
+              exit 1
+            fi
+          done
 
           echo "::add-mask::$CERTIFICATE_ARN"
           echo "::add-mask::$ALB_SECURITY_GROUPS"
           echo "::add-mask::$RDS_SECRET_ARN"
+          echo "::add-mask::$JWT_SECRET_KEY"
 
           echo "CERTIFICATE_ARN=$CERTIFICATE_ARN" >> "$GITHUB_ENV"
           echo "ALB_SECURITY_GROUPS=$ALB_SECURITY_GROUPS" >> "$GITHUB_ENV"
           echo "RDS_SECRET_ARN=$RDS_SECRET_ARN" >> "$GITHUB_ENV"
+          echo "RDS_HOST=$RDS_HOST" >> "$GITHUB_ENV"
+          echo "RDS_PORT=$RDS_PORT" >> "$GITHUB_ENV"
+          echo "MAIN_DB_NAME=$MAIN_DB_NAME" >> "$GITHUB_ENV"
+          echo "SAMPLE_DB_NAME=$SAMPLE_DB_NAME" >> "$GITHUB_ENV"
+          echo "JWT_SECRET_KEY=$JWT_SECRET_KEY" >> "$GITHUB_ENV"
 
-      - name: Create or update backend RDS Kubernetes Secret
+      - name: Create or update backend Kubernetes Secret
         run: |
           SECRET_JSON=$(aws secretsmanager get-secret-value \
             --secret-id "$RDS_SECRET_ARN" \
-            --query SecretString \
+            --query "SecretString" \
             --output text)
 
-          DB_HOST=$(echo "$SECRET_JSON" | jq -r '.host')
-          DB_PORT=$(echo "$SECRET_JSON" | jq -r '.port')
-          DB_NAME=$(echo "$SECRET_JSON" | jq -r '.dbname // .dbInstanceIdentifier')
           DB_USERNAME=$(echo "$SECRET_JSON" | jq -r '.username')
           DB_PASSWORD=$(echo "$SECRET_JSON" | jq -r '.password')
-          DB_ENGINE=$(echo "$SECRET_JSON" | jq -r '.engine // ""')
 
-          if echo "$DB_ENGINE" | grep -qi "postgres"; then
-            JDBC_URL="jdbc:postgresql://$DB_HOST:$DB_PORT/$DB_NAME"
-          else
-            JDBC_URL="jdbc:mysql://$DB_HOST:$DB_PORT/$DB_NAME?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul"
-          fi
+          MAIN_DB_JDBC_URL="jdbc:mysql://$RDS_HOST:$RDS_PORT/$MAIN_DB_NAME?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8"
+          SAMPLE_DB_JDBC_URL="jdbc:mysql://$RDS_HOST:$RDS_PORT/$SAMPLE_DB_NAME?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8"
 
           echo "::add-mask::$DB_PASSWORD"
-          echo "::add-mask::$JDBC_URL"
+          echo "::add-mask::$MAIN_DB_JDBC_URL"
+          echo "::add-mask::$SAMPLE_DB_JDBC_URL"
 
           kubectl create secret generic backend-rds-secret \
             -n "$NAMESPACE" \
-            --from-literal=SPRING_DATASOURCE_URL="$JDBC_URL" \
-            --from-literal=SPRING_DATASOURCE_USERNAME="$DB_USERNAME" \
-            --from-literal=SPRING_DATASOURCE_PASSWORD="$DB_PASSWORD" \
+            --from-literal=MAIN_DB_JDBC_URL="$MAIN_DB_JDBC_URL" \
+            --from-literal=MAIN_DB_USERNAME="$DB_USERNAME" \
+            --from-literal=MAIN_DB_PASSWORD="$DB_PASSWORD" \
+            --from-literal=SAMPLE_DB_JDBC_URL="$SAMPLE_DB_JDBC_URL" \
+            --from-literal=SAMPLE_DB_USERNAME="$DB_USERNAME" \
+            --from-literal=SAMPLE_DB_PASSWORD="$DB_PASSWORD" \
+            --from-literal=JWT_SECRET_KEY="$JWT_SECRET_KEY" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Deploy to EKS
         run: |
-          kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
-
           sed "s|IMAGE_PLACEHOLDER|${{ steps.build-image.outputs.image_uri }}|g" \
             infra/k8s/backend/backend.yaml > /tmp/backend.yaml
 
@@ -131,4 +180,21 @@ jobs:
           kubectl apply -f /tmp/backend.yaml
           kubectl apply -f /tmp/backend-ingress.yaml
 
-          kubectl rollout status deployment/backend -n "$NAMESPACE" --timeout=240s
+          kubectl rollout restart deployment/backend -n "$NAMESPACE"
+
+          if ! kubectl rollout status deployment/backend \
+            -n "$NAMESPACE" \
+            --timeout=300s; then
+
+            echo "===== Backend Pods ====="
+            kubectl get pods -n "$NAMESPACE" -l app=backend -o wide
+
+            echo "===== Backend Description ====="
+            kubectl describe pod -n "$NAMESPACE" -l app=backend
+
+            echo "===== Backend Logs ====="
+            kubectl logs -n "$NAMESPACE" \
+              -l app=backend \
+              --all-containers=true \
+              --tail=200 \
+              --prefix=true || true
