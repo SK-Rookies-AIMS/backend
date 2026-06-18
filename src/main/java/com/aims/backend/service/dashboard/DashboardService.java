@@ -2,6 +2,7 @@ package com.aims.backend.service.dashboard;
 
 import com.aims.backend.domain.dashboard.AgvOperation;
 import com.aims.backend.domain.dashboard.enums.AgvStatus;
+import com.aims.backend.domain.dashboard.enums.OperationStatus;
 import com.aims.backend.dto.dashboard.AgvOperationResponse;
 import com.aims.backend.dto.dashboard.AgvStatusSummaryResponse;
 import com.aims.backend.dto.dashboard.ProcessFlowResponse;
@@ -73,7 +74,7 @@ public class DashboardService {
         List<Object[]> statusCounts = equipmentStatusRepository.countAllByStatus();
         return statusCounts.stream()
                 .map(result -> StatusCountResponse.builder()
-                        .status((String) result[0])
+                        .status(((OperationStatus) result[0]).name())
                         .count((Long) result[1])
                         .build())
                 .collect(Collectors.toList());
