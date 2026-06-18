@@ -2,31 +2,26 @@ package com.aims.backend.service.dashboard;
 
 import com.aims.backend.domain.dashboard.AgvOperation;
 import com.aims.backend.domain.dashboard.enums.AgvStatus;
+import com.aims.backend.domain.dashboard.enums.OperationStatus;
 import com.aims.backend.dto.dashboard.AgvOperationResponse;
 import com.aims.backend.dto.dashboard.AgvStatusSummaryResponse;
 import com.aims.backend.dto.dashboard.ProcessFlowResponse;
+import com.aims.backend.dto.dashboard.StatusCountResponse;
 import com.aims.backend.repository.dashboard.AgvOperationRepository;
+import com.aims.backend.repository.dashboard.EquipmentStatusRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
-/**
- * AGV 현황
- * 공정 흐름도
- * 관련 데이터를 제공한다.
- */
 @Service
 @RequiredArgsConstructor
 public class DashboardService {
 
     private final AgvOperationRepository agvOperationRepository;
+    private final EquipmentStatusRepository equipmentStatusRepository;
 
-    /**
-     * AGV 상태 현황 조회
-     * MOVING, WAITING, RETURNING
-     * 상태별 개수를 집계한다.
-     */
     public AgvStatusSummaryResponse getAgvStatusSummary() {
 
         long totalCount =
@@ -69,6 +64,20 @@ public class DashboardService {
                         .toList();
 
         return new ProcessFlowResponse(agvs);
+    }
+
+    /**
+     * 설비 상태별 개수 조회
+     * euqipment_status 테이블에서 status 컬럼의 각 값들의 개수를 반환한다.
+     */
+    public List<StatusCountResponse> getEquipmentStatusCounts() {
+        List<Object[]> statusCounts = equipmentStatusRepository.countAllByStatus();
+        return statusCounts.stream()
+                .map(result -> StatusCountResponse.builder()
+                        .status(((OperationStatus) result[0]).name())
+                        .count((Long) result[1])
+                        .build())
+                .collect(Collectors.toList());
     }
 
     /**
