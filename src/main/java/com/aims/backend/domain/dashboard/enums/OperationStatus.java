@@ -10,15 +10,16 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum OperationStatus {
 
-    PRESS("프레스"),
+    RUNNING("가동"),
 
-    BODY("차체"),
+    IDLE("대기"),
 
-    PAINT("도장"),
+    STOPPED("정지"),
+    
+    ERROR("에러"),
 
-    ASSEMBLY("의장"),
+    MAINTENANCE("정비");
 
-    INSPECTION("최종검사");
 
     /**
      * 화면 표시용 이름
