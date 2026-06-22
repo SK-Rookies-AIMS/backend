@@ -48,13 +48,12 @@ public class AgvRealtimeRedisService {
     /**
      * 진행률 초기화
      */
-    public void reset(Long agvId, String path) {
-
+    public void reset(Long agvId)
+    {
         AgvRealtimeState state =
                 AgvRealtimeState.builder()
                         .agvId(agvId)
                         .progressRate(0.0)
-                        .currentPath(path)
                         .delaySeconds(0)
                         .build();
 
@@ -76,7 +75,6 @@ public class AgvRealtimeRedisService {
         return AgvRealtimeState.builder()
                 .agvId(agvId)
                 .progressRate(0.0)
-                .currentPath("")
                 .delaySeconds(0)
                 .build();
     }

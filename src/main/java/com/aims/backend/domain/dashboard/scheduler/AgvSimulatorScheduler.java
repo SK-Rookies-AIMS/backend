@@ -20,9 +20,9 @@ public class AgvSimulatorScheduler {
 
         agvSimulationService.updateAgvProgress();
 
-        log.info(
-                "[AGV-SIMULATOR] currentTime={}",
-                simulationClock.getCurrentTime()
-        );
+       // log.info(
+       //         "[AGV-SIMULATOR] currentTime={}",
+       //         simulationClock.getCurrentTime()
+       // );
     }
 }

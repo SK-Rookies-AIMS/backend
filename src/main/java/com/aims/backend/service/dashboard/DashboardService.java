@@ -72,10 +72,9 @@ public class DashboardService {
                 agv.getCarMasterId(),
                 agv.getAgvStatus().name(),
 
-                agv.getCurrentProcess().getDisplayName(),
-                agv.getTargetProcess().getDisplayName(),
+                agv.getCurrentProcess().name(),
+                agv.getTargetProcess().name(),
 
-                realtimeState.getCurrentPath(),
                 realtimeState.getProgressRate(),
                 realtimeState.getDelaySeconds(),
 

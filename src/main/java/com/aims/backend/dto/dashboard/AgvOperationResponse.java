@@ -8,7 +8,6 @@ public record AgvOperationResponse(
         String agvStatus,
         String currentProcess,
         String targetProcess,
-        String currentPath,
         Double progressRate,
         Integer delaySeconds,
         String routeCode,

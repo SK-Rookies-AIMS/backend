@@ -64,7 +64,6 @@ public class AgvSimulationService {
         }
 
         String routeCode = makeRouteCode(currentProcess, nextProcess);
-        String path = makePath(currentProcess, nextProcess);
 
         AgvOperation agv = agvOperationRepository
                 .findFirstByRouteCodeAndAgvStatusOrderByLaneNoAsc(
@@ -85,8 +84,7 @@ public class AgvSimulationService {
         agvOperationRepository.save(agv);
 
         agvRealtimeRedisService.reset(
-                agv.getId(),
-                path
+                agv.getId()
         );
 
         sendAgvStatus();
@@ -132,11 +130,8 @@ public class AgvSimulationService {
 
         agv.changeToReturning();
 
-        String returnPath = makePath(arrivedProcess, homeProcess);
-
         agvRealtimeRedisService.reset(
-                agv.getId(),
-                returnPath
+                agv.getId()
         );
     }
 
@@ -152,8 +147,7 @@ public class AgvSimulationService {
             );
 
             agvRealtimeRedisService.reset(
-                    agv.getId(),
-                    makePath(homeProcess, homeProcess)
+                    agv.getId()
             );
 
             return;
@@ -166,8 +160,7 @@ public class AgvSimulationService {
         );
 
         agvRealtimeRedisService.reset(
-                agv.getId(),
-                makePath(homeProcess, nextProcess)
+                agv.getId()
         );
     }
 
@@ -189,7 +182,6 @@ public class AgvSimulationService {
                 agv.getAgvStatus().name(),
                 agv.getCurrentProcess().name(),
                 agv.getTargetProcess().name(),
-                state.getCurrentPath(),
                 state.getProgressRate(),
                 state.getDelaySeconds(),
                 agv.getRouteCode(),
@@ -200,20 +192,6 @@ public class AgvSimulationService {
 
     private String makeRouteCode(ProcessCode from, ProcessCode to) {
         return from.name() + "_" + to.name();
-    }
-
-    private String makePath(ProcessCode from, ProcessCode to) {
-        return toKorean(from) + "->" + toKorean(to);
-    }
-
-    private String toKorean(ProcessCode processCode) {
-        return switch (processCode) {
-            case PRESS -> "프레스";
-            case BODY -> "차체";
-            case PAINT -> "도장";
-            case ASSEMBLY -> "의장";
-            case INSPECTION -> "검사";
-        };
     }
 
     private int safe(Integer value) {
