@@ -84,7 +84,7 @@ public class DashboardService {
 
         if (hum >= 30 && hum <= 86) return 0.3f;
         if ((hum >= 18 && hum < 30) || (hum > 86 && hum <= 87)) return 0.2f;
-        if ((hum >= 20 && hum < 30) || (hum > 70 && hum < 80)) return 0.1f;
+        if ((hum >= 15 && hum < 18) || (hum > 87 && hum < 90)) return 0.1f;
         return 0.0f;
     }
 
