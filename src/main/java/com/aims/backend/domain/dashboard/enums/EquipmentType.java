@@ -8,21 +8,11 @@ import lombok.RequiredArgsConstructor;
  */
 @Getter
 @RequiredArgsConstructor
-public enum OperationStatus {
+public enum EquipmentType {
+    HYDRAULIC_PRESS("유압 프레스"),
+    ROBOT_ARM("로봇 팔"),
+    CAMERA("카메라"),
+    CONVEYOR("컨베이어");
 
-    RUNNING("가동"),
-
-    IDLE("대기"),
-
-    STOPPED("정지"),
-    
-    FAULT("고장"),
-
-    MAINTENANCE("정비");
-
-
-    /**
-     * 화면 표시용 이름
-     */
     private final String displayName;
 }

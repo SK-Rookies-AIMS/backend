@@ -8,7 +8,7 @@ import com.aims.backend.dto.dashboard.AgvStatusSummaryResponse;
 import com.aims.backend.dto.dashboard.ProcessFlowResponse;
 import com.aims.backend.dto.dashboard.StatusCountResponse;
 import com.aims.backend.dto.mainpage.OverallStatusResponse;
-import com.aims.backend.repository.dashboard.EquipmentStatusRepository;
+import com.aims.backend.repository.sample.EquipmentRepository;
 import com.aims.backend.domain.dashboard.FactoryEnvironment;
 import com.aims.backend.repository.sample.FactoryEnvironmentRepository;
 import com.aims.backend.repository.dashboard.AgvOperationRepository;
@@ -26,18 +26,18 @@ import java.util.stream.Collectors;
 public class DashboardService {
 
     private final AgvOperationRepository agvOperationRepository;
-    private final EquipmentStatusRepository equipmentStatusRepository;
+    private final EquipmentRepository equipmentRepository;
     private final FactoryEnvironmentRepository factoryEnvironmentRepository;
 
     public OverallStatusResponse getOverallStatus() {
-        double equipmentScore = equipmentStatusRepository.findAll().stream()
-                .mapToDouble(history -> {
-                    switch (history.getOperationStatus()) {
+        double equipmentScore = equipmentRepository.findAll().stream()
+                .mapToDouble(equipment -> {
+                    switch (equipment.getCurrentStatus()) {
                         case RUNNING: return 5.0;
                         case IDLE: return 4.0;
                         case MAINTENANCE: return 3.0;
                         case STOPPED: return 0.0;
-                        case ERROR: return 0.0;
+                        case FAULT: return 0.0;
                         default: return 0.0;
                     }
                 }).sum();
@@ -143,10 +143,10 @@ public class DashboardService {
 
     /**
      * 설비 상태별 개수 조회
-     * euqipment_status 테이블에서 status 컬럼의 각 값들의 개수를 반환한다.
+     * equipment 테이블에서 current_status 컬럼의 각 값들의 개수를 반환한다.
      */
     public List<StatusCountResponse> getEquipmentStatusCounts() {
-        List<Object[]> statusCounts = equipmentStatusRepository.countAllByStatus();
+        List<Object[]> statusCounts = equipmentRepository.countAllByCurrentStatus();
         return statusCounts.stream()
                 .map(result -> StatusCountResponse.builder()
                         .status(((OperationStatus) result[0]).name())
