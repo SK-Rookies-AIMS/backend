@@ -4,7 +4,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 /**
- * 자동차 제조 공정 단계
+ * 장비 상태
  */
 @Getter
 @RequiredArgsConstructor
