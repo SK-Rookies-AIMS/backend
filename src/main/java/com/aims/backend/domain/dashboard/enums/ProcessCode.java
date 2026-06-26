@@ -4,5 +4,6 @@ public enum ProcessCode {
     ASSEMBLY,
     BODY,
     PAINT,
-    PRESS
+    PRESS,
+    INSPECTION
 }

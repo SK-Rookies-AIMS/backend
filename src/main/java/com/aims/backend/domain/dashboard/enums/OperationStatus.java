@@ -4,7 +4,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 /**
- * 자동차 제조 공정 단계
+ * 장비 상태
  */
 @Getter
 @RequiredArgsConstructor
@@ -16,7 +16,7 @@ public enum OperationStatus {
 
     STOPPED("정지"),
     
-    ERROR("에러"),
+    FAULT("고장"),
 
     MAINTENANCE("정비");
 

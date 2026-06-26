@@ -5,6 +5,7 @@ import com.aims.backend.dto.dashboard.AgvStatusCountResponse;
 import com.aims.backend.dto.dashboard.AgvStatusSummaryResponse;
 import com.aims.backend.dto.dashboard.ProcessFlowResponse;
 import com.aims.backend.dto.dashboard.StatusCountResponse;
+import com.aims.backend.dto.mainpage.OverallStatusResponse;
 import com.aims.backend.service.dashboard.DashboardService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,6 +20,11 @@ import java.util.List;
 public class DashboardController {
 
     private final DashboardService dashboardService;
+
+    @GetMapping("/overall_status")
+    public ApiResponse<OverallStatusResponse> getOverallStatus() {
+        return ApiResponse.success(dashboardService.getOverallStatus());
+    }
 
     @GetMapping("/agv-status")
     public ApiResponse<AgvStatusSummaryResponse> getAgvStatusSummary() {
