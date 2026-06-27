@@ -8,6 +8,8 @@ import com.aims.backend.dto.dashboard.AgvStatusSummaryResponse;
 import com.aims.backend.dto.dashboard.ProcessFlowResponse;
 import com.aims.backend.dto.dashboard.StatusCountResponse;
 import com.aims.backend.dto.mainpage.OverallStatusResponse;
+import com.aims.backend.dto.dashboard.ManufacturingStatusResponse;
+import com.aims.backend.domain.dashboard.enums.ProcessCode;
 import com.aims.backend.repository.sample.EquipmentRepository;
 import com.aims.backend.domain.dashboard.FactoryEnvironment;
 import com.aims.backend.repository.sample.FactoryEnvironmentRepository;
@@ -17,7 +19,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -28,6 +32,45 @@ public class DashboardService {
     private final AgvOperationRepository agvOperationRepository;
     private final EquipmentRepository equipmentRepository;
     private final FactoryEnvironmentRepository factoryEnvironmentRepository;
+
+    public List<ManufacturingStatusResponse> getManufacturingStatus() {
+        // 1. Get active (RUNNING/IDLE) equipment counts per process
+        Map<ProcessCode, Long> activeCounts = equipmentRepository.countActiveByProcessCode().stream()
+                .collect(Collectors.toMap(
+                        result -> (ProcessCode) result[0],
+                        result -> (Long) result[1]
+                ));
+
+        // 2. Get total equipment counts per process
+        Map<ProcessCode, Long> totalCounts = equipmentRepository.countTotalByProcessCode().stream()
+                .collect(Collectors.toMap(
+                        result -> (ProcessCode) result[0],
+                        result -> (Long) result[1]
+                ));
+
+        // 3. Get latest environment data per process
+        Map<ProcessCode, FactoryEnvironment> latestEnvironments = factoryEnvironmentRepository.findAll().stream()
+                .collect(Collectors.toMap(
+                        FactoryEnvironment::getProcessCode,
+                        env -> env,
+                        (existing, replacement) -> existing.getCreatedAt().isAfter(replacement.getCreatedAt()) ? existing : replacement
+                ));
+
+        // 4. Combine and map to response
+        return Arrays.stream(ProcessCode.values())
+                .map(code -> {
+                    FactoryEnvironment env = latestEnvironments.getOrDefault(code, new FactoryEnvironment());
+                    return ManufacturingStatusResponse.builder()
+                            .processCode(code)
+                            .overallEquipmentCount(totalCounts.getOrDefault(code, 0L))
+                            .runningEquipmentCount(activeCounts.getOrDefault(code, 0L))
+                            .temperature(env.getTemperature() != null ? env.getTemperature() : 0.0)
+                            .humidity(env.getHumidity() != null ? env.getHumidity() : 0.0)
+                            .usage(env.getUsage() != null ? env.getUsage() : 0)
+                            .build();
+                })
+                .collect(Collectors.toList());
+    }
 
     public OverallStatusResponse getOverallStatus() {
         double equipmentScore = equipmentRepository.findAll().stream()

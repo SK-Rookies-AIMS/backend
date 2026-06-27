@@ -3,6 +3,7 @@ package com.aims.backend.controller.dashboard;
 import com.aims.backend.common.response.ApiResponse;
 import com.aims.backend.dto.dashboard.AgvStatusCountResponse;
 import com.aims.backend.dto.dashboard.AgvStatusSummaryResponse;
+import com.aims.backend.dto.dashboard.ManufacturingStatusResponse;
 import com.aims.backend.dto.dashboard.ProcessFlowResponse;
 import com.aims.backend.dto.dashboard.StatusCountResponse;
 import com.aims.backend.dto.mainpage.OverallStatusResponse;
@@ -46,6 +47,13 @@ public class DashboardController {
     public ApiResponse<List<StatusCountResponse>> getEquipmentStatusCounts() {
         return ApiResponse.success(
                 dashboardService.getEquipmentStatusCounts()
+        );
+    }
+
+    @GetMapping("/get-manufacturing-status")
+    public ApiResponse<List<ManufacturingStatusResponse>> getManufacturingStatus() {
+        return ApiResponse.success(
+                dashboardService.getManufacturingStatus()
         );
     }
 }
