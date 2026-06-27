@@ -15,8 +15,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ManufacturingEventConsumer {
 
-    private final ObjectMapper objectMapper =
-            new ObjectMapper();
+    private final ObjectMapper objectMapper;
     private final AgvSimulationService agvSimulationService;
 
     @KafkaListener(

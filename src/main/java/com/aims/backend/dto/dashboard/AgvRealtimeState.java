@@ -14,27 +14,15 @@ public class AgvRealtimeState {
 
     private Double progressRate;
 
-    private String currentPath;
-
     private Integer delaySeconds;
 
     public void increaseProgress(double amount) {
-
-        double current =
-                progressRate == null
-                        ? 0.0
-                        : progressRate;
-
-        progressRate =
-                Math.min(
-                        100.0,
-                        current + amount
-                );
+        double current = progressRate == null ? 0.0 : progressRate;
+        this.progressRate = Math.min(100.0, current + amount);
     }
 
     @JsonIgnore
     public boolean isArrived() {
-        return progressRate != null
-                && progressRate >= 100.0;
+        return progressRate != null && progressRate >= 100.0;
     }
 }

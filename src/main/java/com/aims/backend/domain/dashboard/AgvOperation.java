@@ -39,8 +39,12 @@ public class AgvOperation extends BaseEntity {
     @Column(name = "lane_no")
     private Integer laneNo;
 
-    /** AGV 출발 */
-    public void dispatch(Long carMasterId, ProcessCode from, ProcessCode to, String routeCode) {
+    public void dispatch(
+            Long carMasterId,
+            ProcessCode from,
+            ProcessCode to,
+            String routeCode
+    ) {
         this.carMasterId = carMasterId;
         this.currentProcess = from;
         this.targetProcess = to;
@@ -48,22 +52,25 @@ public class AgvOperation extends BaseEntity {
         this.agvStatus = AgvStatus.MOVING;
     }
 
-    /** AGV 복귀 전환 */
     public void changeToReturning() {
         ProcessCode arrivedProcess = this.targetProcess;
         ProcessCode homeProcess = this.currentProcess;
 
-        this.agvStatus = AgvStatus.RETURNING;
+        this.carMasterId = null;
         this.currentProcess = arrivedProcess;
         this.targetProcess = homeProcess;
+        this.agvStatus = AgvStatus.RETURNING;
     }
 
-    /** AGV 대기 전환 */
-    public void changeToWaiting(ProcessCode homeProcess, ProcessCode nextProcess, String routeCode) {
-        this.agvStatus = AgvStatus.WAITING;
+    public void changeToWaiting(
+            ProcessCode homeProcess,
+            ProcessCode nextProcess,
+            String routeCode
+    ) {
         this.carMasterId = null;
         this.currentProcess = homeProcess;
         this.targetProcess = nextProcess;
         this.routeCode = routeCode;
+        this.agvStatus = AgvStatus.WAITING;
     }
 }

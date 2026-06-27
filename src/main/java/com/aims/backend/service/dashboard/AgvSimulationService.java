@@ -8,15 +8,15 @@ import com.aims.backend.dto.dashboard.AgvRealtimeState;
 import com.aims.backend.dto.dashboard.ManufacturingEventRequest;
 import com.aims.backend.repository.dashboard.AgvOperationRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AgvSimulationService {
@@ -27,64 +27,88 @@ public class AgvSimulationService {
 
     private static final double PROGRESS_STEP = 5.0;
 
-    private static final Map<ProcessCode, ProcessCode> NEXT_PROCESS = Map.of(
-            ProcessCode.PRESS, ProcessCode.BODY,
-            ProcessCode.BODY, ProcessCode.PAINT,
-            ProcessCode.PAINT, ProcessCode.ASSEMBLY,
-            ProcessCode.ASSEMBLY, ProcessCode.INSPECTION
+    private static final Map<ProcessCode, RouteInfo> ROUTES = Map.of(
+            ProcessCode.PRESS,
+            new RouteInfo(
+                    ProcessCode.PRESS,
+                    ProcessCode.BODY,
+                    "PRESS_BODY"
+            ),
+
+            ProcessCode.BODY,
+            new RouteInfo(
+                    ProcessCode.BODY,
+                    ProcessCode.PAINT,
+                    "BODY_PAINT"
+            ),
+
+            ProcessCode.PAINT,
+            new RouteInfo(
+                    ProcessCode.PAINT,
+                    ProcessCode.ASSEMBLY,
+                    "PAINT_ASSEMBLY"
+            ),
+
+            ProcessCode.ASSEMBLY,
+            new RouteInfo(
+                    ProcessCode.ASSEMBLY,
+                    ProcessCode.INSPECTION,
+                    "ASSEMBLY_INSPECTION"
+            )
     );
 
+    @Transactional
     public void handleManufacturingEvent(ManufacturingEventRequest request) {
-        ProcessCode processCode = ProcessCode.valueOf(request.getProcessCode());
-
-        LocalDateTime processStartTime = LocalDateTime.parse(request.getEventTime());
-
-        LocalDateTime processCompleteTime = processStartTime
-                .plusSeconds(safe(request.getProcessingTimeSec()))
-                .plusSeconds(safe(request.getWaitingTimeSec()))
-                .plusSeconds(safe(request.getStationDelaySec()));
+        ProcessCode currentProcess = ProcessCode.valueOf(request.getProcessCode());
 
         dispatchAgv(
                 request.getCarMasterId(),
-                processCode,
-                processCompleteTime
+                currentProcess
         );
     }
 
     @Transactional
     public void dispatchAgv(
             Long carMasterId,
-            ProcessCode currentProcess,
-            LocalDateTime processCompleteTime
+            ProcessCode currentProcess
     ) {
-        ProcessCode nextProcess = NEXT_PROCESS.get(currentProcess);
+        RouteInfo routeInfo = ROUTES.get(currentProcess);
 
-        if (nextProcess == null) {
+        if (routeInfo == null) {
+            log.info(
+                    "[AGV DISPATCH SKIP] 운반 대상 공정 아님. process={}",
+                    currentProcess
+            );
             return;
         }
 
-        String routeCode = makeRouteCode(currentProcess, nextProcess);
-
         AgvOperation agv = agvOperationRepository
                 .findFirstByRouteCodeAndAgvStatusOrderByLaneNoAsc(
-                        routeCode,
+                        routeInfo.routeCode(),
                         AgvStatus.WAITING
                 )
                 .orElseThrow(() -> new IllegalStateException(
-                        "대기 중인 AGV가 없습니다. routeCode=" + routeCode
+                        "대기 중인 AGV가 없습니다. routeCode=" + routeInfo.routeCode()
                 ));
 
         agv.dispatch(
                 carMasterId,
-                currentProcess,
-                nextProcess,
-                routeCode
+                routeInfo.from(),
+                routeInfo.to(),
+                routeInfo.routeCode()
         );
+
+        agvRealtimeRedisService.reset(agv.getId());
 
         agvOperationRepository.save(agv);
 
-        agvRealtimeRedisService.reset(
-                agv.getId()
+        log.info(
+                "[AGV DISPATCH] agvId={}, carMasterId={}, {} -> {}, routeCode={}",
+                agv.getId(),
+                carMasterId,
+                routeInfo.from(),
+                routeInfo.to(),
+                routeInfo.routeCode()
         );
 
         sendAgvStatus();
@@ -92,19 +116,30 @@ public class AgvSimulationService {
 
     @Transactional
     public void updateAgvProgress() {
-        List<AgvOperation> activeAgvs = agvOperationRepository.findByAgvStatusIn(
-                List.of(AgvStatus.MOVING, AgvStatus.RETURNING)
-        );
-
-        List<AgvOperation> changedAgvs = new ArrayList<>();
+        List<AgvOperation> activeAgvs =
+                agvOperationRepository.findByAgvStatusIn(
+                        List.of(
+                                AgvStatus.MOVING,
+                                AgvStatus.RETURNING
+                        )
+                );
 
         for (AgvOperation agv : activeAgvs) {
-            AgvRealtimeState state = agvRealtimeRedisService.get(agv.getId());
+            AgvRealtimeState state =
+                    agvRealtimeRedisService.get(agv.getId());
 
             state.increaseProgress(PROGRESS_STEP);
-            agvRealtimeRedisService.save(state);
 
             if (!state.isArrived()) {
+                agvRealtimeRedisService.save(state);
+
+                log.debug(
+                        "[AGV PROGRESS] agvId={}, status={}, progress={}",
+                        agv.getId(),
+                        agv.getAgvStatus(),
+                        state.getProgressRate()
+                );
+
                 continue;
             }
 
@@ -113,12 +148,6 @@ public class AgvSimulationService {
             } else if (agv.getAgvStatus() == AgvStatus.RETURNING) {
                 handleReturningArrived(agv);
             }
-
-            changedAgvs.add(agv);
-        }
-
-        if (!changedAgvs.isEmpty()) {
-            agvOperationRepository.saveAll(changedAgvs);
         }
 
         sendAgvStatus();
@@ -130,51 +159,72 @@ public class AgvSimulationService {
 
         agv.changeToReturning();
 
-        agvRealtimeRedisService.reset(
-                agv.getId()
+        agvRealtimeRedisService.reset(agv.getId());
+
+        log.info(
+                "[AGV ARRIVED] agvId={}, arrived={}, returningTo={}",
+                agv.getId(),
+                arrivedProcess,
+                homeProcess
         );
     }
 
     private void handleReturningArrived(AgvOperation agv) {
         ProcessCode homeProcess = agv.getTargetProcess();
-        ProcessCode nextProcess = NEXT_PROCESS.get(homeProcess);
 
-        if (nextProcess == null) {
+        RouteInfo routeInfo = ROUTES.get(homeProcess);
+
+        if (routeInfo == null) {
             agv.changeToWaiting(
                     homeProcess,
                     homeProcess,
                     null
             );
 
-            agvRealtimeRedisService.reset(
-                    agv.getId()
+            agvRealtimeRedisService.reset(agv.getId());
+
+            log.info(
+                    "[AGV WAITING] agvId={}, home={}",
+                    agv.getId(),
+                    homeProcess
             );
 
             return;
         }
 
         agv.changeToWaiting(
-                homeProcess,
-                nextProcess,
-                makeRouteCode(homeProcess, nextProcess)
+                routeInfo.from(),
+                routeInfo.to(),
+                routeInfo.routeCode()
         );
 
-        agvRealtimeRedisService.reset(
-                agv.getId()
+        agvRealtimeRedisService.reset(agv.getId());
+
+        log.info(
+                "[AGV RETURN COMPLETE] agvId={}, waitingAt={}, nextTarget={}, routeCode={}",
+                agv.getId(),
+                routeInfo.from(),
+                routeInfo.to(),
+                routeInfo.routeCode()
         );
     }
 
     private void sendAgvStatus() {
-        List<AgvOperationResponse> response = agvOperationRepository.findAll()
-                .stream()
-                .map(this::toResponse)
-                .toList();
+        List<AgvOperationResponse> response =
+                agvOperationRepository.findAll()
+                        .stream()
+                        .map(this::toResponse)
+                        .toList();
 
-        messagingTemplate.convertAndSend("/topic/agv", response);
+        messagingTemplate.convertAndSend(
+                "/topic/agv",
+                response
+        );
     }
 
     private AgvOperationResponse toResponse(AgvOperation agv) {
-        AgvRealtimeState state = agvRealtimeRedisService.get(agv.getId());
+        AgvRealtimeState state =
+                agvRealtimeRedisService.get(agv.getId());
 
         return new AgvOperationResponse(
                 agv.getId(),
@@ -190,11 +240,10 @@ public class AgvSimulationService {
         );
     }
 
-    private String makeRouteCode(ProcessCode from, ProcessCode to) {
-        return from.name() + "_" + to.name();
-    }
-
-    private int safe(Integer value) {
-        return value == null ? 0 : value;
+    private record RouteInfo(
+            ProcessCode from,
+            ProcessCode to,
+            String routeCode
+    ) {
     }
 }
