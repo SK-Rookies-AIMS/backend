@@ -8,11 +8,17 @@ import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
 
-public interface AgvOperationRepository
-        extends JpaRepository<AgvOperation, Long> {
+import java.util.List;
+import java.util.Optional;
+
+public interface AgvOperationRepository extends JpaRepository<AgvOperation, Long> {
 
     long countByAgvStatus(AgvStatus agvStatus);
 
-    @Query("SELECT new com.aims.backend.dto.dashboard.AgvStatusCountResponse(ao.agvStatus, COUNT(ao.id)) FROM AgvOperation ao GROUP BY ao.agvStatus")
-    List<AgvStatusCountResponse> countAgvOperationsByStatus();
+    List<AgvOperation> findByAgvStatusIn(List<AgvStatus> statuses);
+
+    Optional<AgvOperation> findFirstByRouteCodeAndAgvStatusOrderByLaneNoAsc(
+            String routeCode,
+            AgvStatus agvStatus
+    );
 }

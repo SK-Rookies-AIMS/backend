@@ -1,9 +1,16 @@
 package com.aims.backend.domain.dashboard.enums;
 
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+
+@Getter
+@RequiredArgsConstructor
 public enum ProcessCode {
-    ASSEMBLY,
+
+    PRESS,
     BODY,
     PAINT,
-    PRESS,
-    INSPECTION
+    ASSEMBLY,
+    INSPECTION;
+    
 }

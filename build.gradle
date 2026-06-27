@@ -24,6 +24,7 @@ ext {
 	set('springdocOpenapiVersion', "3.0.3")
 	set('opensearchJavaVersion', "3.8.0")
 	set('jjwtVersion', "0.12.6")
+    set('awsMskIamAuthVersion', "2.3.7")
 }
 
 dependencies {
@@ -47,10 +48,14 @@ dependencies {
 
 	// Kafka
 	implementation 'org.springframework.kafka:spring-kafka'
+    implementation "software.amazon.msk:aws-msk-iam-auth:${awsMskIamAuthVersion}"
 
 	// OpenSearch
 	implementation "org.opensearch.client:opensearch-java:${opensearchJavaVersion}"
 	implementation 'org.apache.httpcomponents.client5:httpclient5'
+
+    // WebSocket
+    implementation 'org.springframework.boot:spring-boot-starter-websocket'
 
 	// QueryDSL
 	implementation "com.querydsl:querydsl-jpa:${querydslVersion}:jakarta"
