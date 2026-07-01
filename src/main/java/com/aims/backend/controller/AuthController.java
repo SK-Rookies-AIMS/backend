@@ -3,6 +3,7 @@ package com.aims.backend.controller;
 import com.aims.backend.common.response.ApiResponse;
 import com.aims.backend.domain.user.User;
 import com.aims.backend.dto.auth.LoginRequest;
+import com.aims.backend.dto.auth.RefreshRequest;
 import com.aims.backend.dto.auth.SignUpRequest;
 import com.aims.backend.dto.auth.TokenResponse;
 import com.aims.backend.service.AuthService;
@@ -39,5 +40,12 @@ public class AuthController {
     public ApiResponse<String> signUp(@Valid @RequestBody SignUpRequest signUpRequest) {
         authService.signUp(signUpRequest);
         return ApiResponse.success(null, "회원가입이 완료되었습니다.");
+    }
+
+    @Operation(summary = "토큰 갱신", description = "Refresh Token을 사용하여 Access Token을 갱신합니다.")
+    @PostMapping("/refresh")
+    public ApiResponse<TokenResponse.TokenDTO> refresh(@Valid @RequestBody RefreshRequest.RefreshDTO refreshDTO) {
+        TokenResponse.TokenDTO tokenDTO = authService.refresh(refreshDTO);
+        return ApiResponse.success(tokenDTO, "토큰 갱신 성공입니다.");
     }
 }

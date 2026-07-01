@@ -4,6 +4,7 @@ import com.aims.backend.config.jwt.TokenProvider;
 import com.aims.backend.domain.user.User;
 import com.aims.backend.domain.user.UserRole;
 import com.aims.backend.dto.auth.LoginRequest;
+import com.aims.backend.dto.auth.RefreshRequest;
 import com.aims.backend.dto.auth.SignUpRequest;
 import com.aims.backend.dto.auth.TokenResponse;
 import com.aims.backend.exception.GeneralException;
@@ -55,6 +56,14 @@ public class AuthService {
         }
         
         return tokenProvider.generateTokens(authentication);
+    }
+
+    public TokenResponse.TokenDTO refresh(RefreshRequest.RefreshDTO refreshDTO) {
+        TokenResponse.TokenDTO tokenDTO = tokenProvider.refreshAccessToken(refreshDTO.getRefreshToken());
+        if (tokenDTO == null) {
+            throw new GeneralException(ErrorStatus.UNAUTHORIZED);
+        }
+        return tokenDTO;
     }
 
     public User signUp(SignUpRequest request) {

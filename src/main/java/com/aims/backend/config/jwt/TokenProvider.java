@@ -47,15 +47,17 @@ public class TokenProvider {
 
         Long EmpNo = null;
         Long id = null;
+        String name = null;
         Object principal = authentication.getPrincipal();
         if (principal instanceof CustomUserDetailsService.UserPrincipal userPrincipal) {
             EmpNo = userPrincipal.getEmpNo();
             id = userPrincipal.getId();
+            name = userPrincipal.getName();
         }
 
         Date now = new Date();
-        String accessToken = createToken(email, role, EmpNo, id, now, jwtProperties.getExpiration().getAccess());
-        String refreshToken = createToken(email, role, EmpNo, id, now, jwtProperties.getExpiration().getRefresh());
+        String accessToken = createToken(email, role, EmpNo, id, name, now, jwtProperties.getExpiration().getAccess());
+        String refreshToken = createToken(email, role, EmpNo, id, name, now, jwtProperties.getExpiration().getRefresh());
 
         return TokenMapper.toTokenDTO(
                 accessToken,
@@ -100,9 +102,10 @@ public class TokenProvider {
         String role = claims.get(JwtConstants.ROLE_CLAIM, String.class);
         Long EmpNo = claims.get(JwtConstants.EMP_NO_CLAIM, Long.class);
         Long id = claims.get(JwtConstants.ID_CLAIM, Long.class);
+        String name = claims.get(JwtConstants.NAME_CLAIM, String.class);
 
         Collection<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(role));
-        JwtPrincipal principal = new JwtPrincipal(EmpNo, id, email, role);
+        JwtPrincipal principal = new JwtPrincipal(EmpNo, id, email, role, name);
 
         return new UsernamePasswordAuthenticationToken(principal, token, authorities);
     }
@@ -145,9 +148,10 @@ public class TokenProvider {
         String role = claims.get(JwtConstants.ROLE_CLAIM, String.class);
         Long EmpNo = claims.get(JwtConstants.EMP_NO_CLAIM, Long.class);
         Long id = claims.get(JwtConstants.ID_CLAIM, Long.class);
+        String name = claims.get(JwtConstants.NAME_CLAIM, String.class);
 
         Date now = new Date();
-        String newAccessToken = createToken(email, role, EmpNo, id, now, jwtProperties.getExpiration().getAccess());
+        String newAccessToken = createToken(email, role, EmpNo, id, name, now, jwtProperties.getExpiration().getAccess());
 
         return TokenMapper.toTokenDTO(
                 newAccessToken,
@@ -161,12 +165,13 @@ public class TokenProvider {
         return parseClaims(token).getExpiration();
     }
 
-    private String createToken(String email, String role, Long EmpNo, Long id, Date issuedAt, long expirationMillis) {
+    private String createToken(String email, String role, Long EmpNo, Long id, String name, Date issuedAt, long expirationMillis) {
         return Jwts.builder()
                 .subject(email)
                 .claim(JwtConstants.ROLE_CLAIM, role)
                 .claim(JwtConstants.EMP_NO_CLAIM, EmpNo)
                 .claim(JwtConstants.ID_CLAIM, id)
+                .claim(JwtConstants.NAME_CLAIM, name)
                 .issuedAt(issuedAt)
                 .expiration(new Date(issuedAt.getTime() + expirationMillis))
                 .signWith(getSigningKey())
@@ -181,7 +186,7 @@ public class TokenProvider {
                 .getPayload();
     }
 
-    public record JwtPrincipal(Long EmpNo, Long id, String email, String role) {
+    public record JwtPrincipal(Long EmpNo, Long id, String email, String role, String name) {
 
         public User toSpringUser() {
             return new User(email, "", List.of(new SimpleGrantedAuthority(role)));

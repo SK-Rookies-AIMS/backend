@@ -5,12 +5,10 @@ import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
-public enum ProcessCode {
-    ASSEMBLY("조립"),
-    BODY("차체"),
-    PAINT("도장"),
-    PRESS("프레스"),
-    INSPECTION("검사");
+public enum Severity {
+    CRITICAL("치명적"),
+    NORMAL("보통"),
+    WARNING("경고");
 
     private final String displayName;
 }
