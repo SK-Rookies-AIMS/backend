@@ -44,7 +44,7 @@ public class MainJpaConfig {
     public LocalContainerEntityManagerFactoryBean mainEntityManagerFactory() {
         LocalContainerEntityManagerFactoryBean em = new LocalContainerEntityManagerFactoryBean();
         em.setDataSource(mainDataSource());
-        em.setPackagesToScan("com.aims.backend.domain.commons", "com.aims.backend.domain.mainpage", "com.aims.backend.domain.user", "com.aims.backend.domain.dashboard");
+        em.setPackagesToScan("com.aims.backend.domain.commons", "com.aims.backend.domain.mainpage", "com.aims.backend.domain.user", "com.aims.backend.domain.dashboard", "com.aims.backend.domain.alert");
         em.setJpaVendorAdapter(new HibernateJpaVendorAdapter());
         return em;
     }
