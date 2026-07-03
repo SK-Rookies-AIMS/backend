@@ -112,14 +112,32 @@ public class AlertEventSaveService {
                 eventKey(root, alertType, processCode, equipmentId, title, eventId);
         BigDecimal riskScore =
                 score(root, BigDecimal.ZERO, BigDecimal.valueOf(100), "riskScore", "risk_score");
+        if (riskScore == null) {
+            log.warn("Alert event skipped. riskScore is missing, invalid, or out of range. eventId={}", eventId);
+            return null;
+        }
         BigDecimal occurrenceScore =
                 calculateOccurrenceScore(eventKey);
         BigDecimal detectionScore =
                 calculateDetectionScore(eventKey);
         BigDecimal priorityScore =
                 calculatePriorityScore(riskScore, occurrenceScore, detectionScore);
+        AlertSeverity severity =
+                calculateSeverity(priorityScore);
         LocalDateTime scoreCalculatedAt =
                 LocalDateTime.now();
+
+        log.info(
+                "Adaptive eRPN calculated. eventId={}, eventKey={}, riskScore={}, occurrenceScore={}, detectionScore={}, priorityScore={}, severity={}, scoreCalculatedAt={}",
+                eventId,
+                eventKey,
+                riskScore,
+                occurrenceScore,
+                detectionScore,
+                priorityScore,
+                severity,
+                scoreCalculatedAt
+        );
 
         return AlertEvent.builder()
                 .logNo(generateLogNo())
@@ -132,7 +150,7 @@ public class AlertEventSaveService {
                 .occurrenceScore(occurrenceScore)
                 .detectionScore(detectionScore)
                 .priorityScore(priorityScore)
-                .severity(calculateSeverity(priorityScore))
+                .severity(severity)
                 .title(truncate(title, 100))
                 .contents(truncate(contents, 500))
                 .actionStatus(AlertActionStatus.INCOMPLETE)

@@ -59,6 +59,11 @@ class AlertEventSaveServiceTest {
         assertThat(saved.getProcessCode()).isEqualTo(ProcessCode.PAINT);
         assertThat(saved.getEquipmentId()).isNull();
         assertThat(saved.getRiskScore()).isEqualByComparingTo(new BigDecimal("77.12"));
+        assertThat(saved.getOccurrenceScore()).isEqualByComparingTo(new BigDecimal("0.0000"));
+        assertThat(saved.getDetectionScore()).isEqualByComparingTo(new BigDecimal("0.0000"));
+        assertThat(saved.getPriorityScore()).isEqualByComparingTo(new BigDecimal("77.12"));
+        assertThat(saved.getSeverity()).isEqualTo(AlertSeverity.CAUTION);
+        assertThat(saved.getScoreCalculatedAt()).isNotNull();
     }
 
     @Test
@@ -70,7 +75,8 @@ class AlertEventSaveServiceTest {
                   "processCode": "BODY",
                   "equipmentId": 20,
                   "title": "equipment warning",
-                  "contents": "equipment abnormal"
+                  "contents": "equipment abnormal",
+                  "riskScore": 50.00
                 }
                 """);
 
@@ -98,7 +104,8 @@ class AlertEventSaveServiceTest {
                   "processCode": "ASSEMBLY",
                   "equipmentId": 30,
                   "title": "equipment warning",
-                  "message": "equipment abnormal"
+                  "message": "equipment abnormal",
+                  "riskScore": 50.00
                 }
                 """);
 
@@ -125,7 +132,7 @@ class AlertEventSaveServiceTest {
     }
 
     @Test
-    void storesNullWhenRiskScoreIsOutOfRange() {
+    void skipsWhenRiskScoreIsOutOfRange() {
         alertEventSaveService.save("""
                 {
                   "eventId": "event-risk-out-of-range",
@@ -137,9 +144,7 @@ class AlertEventSaveServiceTest {
                 }
                 """);
 
-        AlertEvent saved =
-                capturedAlertEvent();
-        assertThat(saved.getRiskScore()).isNull();
+        verify(alertEventRepository, never()).saveAndFlush(any());
     }
 
     @Test
@@ -148,7 +153,8 @@ class AlertEventSaveServiceTest {
                 {
                   "eventId": "event-default-text",
                   "alertType": "PROCESS",
-                  "processCode": "PAINT"
+                  "processCode": "PAINT",
+                  "riskScore": 50.00
                 }
                 """);
 
@@ -249,7 +255,8 @@ class AlertEventSaveServiceTest {
                   "alertType": "%s",
                   "processCode": "%s",
                   "title": "alert title",
-                  "message": "alert contents"
+                  "message": "alert contents",
+                  "riskScore": 50.00
                 }
                 """.formatted(eventId, alertType, processCode);
     }
