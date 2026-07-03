@@ -2,6 +2,7 @@ package com.aims.backend.service.alert;
 
 import com.aims.backend.domain.alert.AlertActionStatus;
 import com.aims.backend.domain.alert.AlertEvent;
+import com.aims.backend.domain.alert.AlertSeverity;
 import com.aims.backend.domain.alert.AlertType;
 import com.aims.backend.domain.dashboard.enums.ProcessCode;
 import com.aims.backend.repository.alert.AlertEventRepository;
@@ -14,9 +15,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -156,12 +159,39 @@ class AlertEventSaveServiceTest {
     }
 
     @Test
-    void usesPendingActionStatusByDefault() {
+    void usesIncompleteActionStatusByDefault() {
         alertEventSaveService.save(baseMessage("event-action-status", "PROCESS", "BODY"));
 
         AlertEvent saved =
                 capturedAlertEvent();
-        assertThat(saved.getActionStatus()).isEqualTo(AlertActionStatus.PENDING);
+        assertThat(saved.getActionStatus()).isEqualTo(AlertActionStatus.INCOMPLETE);
+    }
+
+    @Test
+    void calculatesAdaptiveErpnScores() {
+        when(alertEventRepository.countByEventKeyAndCreatedAtGreaterThanEqual(
+                eq("TEMP_HIGH"),
+                any(LocalDateTime.class)
+        )).thenReturn(140L);
+        when(alertEventRepository.findMaxEventKeyCountSince(any(LocalDateTime.class)))
+                .thenReturn(140L);
+        when(alertEventRepository.countByEventKeyAndActionStatus("TEMP_HIGH", AlertActionStatus.COMPLETED))
+                .thenReturn(6L);
+        when(alertEventRepository.countByEventKeyAndActionStatus("TEMP_HIGH", AlertActionStatus.INCOMPLETE))
+                .thenReturn(2L);
+        when(alertEventRepository.countByEventKeyAndActionStatus("TEMP_HIGH", AlertActionStatus.NOT_NEEDED))
+                .thenReturn(2L);
+
+        alertEventSaveService.save(messageWithRiskAndEventKey("event-erpn", "88.00", "TEMP_HIGH"));
+
+        AlertEvent saved =
+                capturedAlertEvent();
+        assertThat(saved.getRiskScore()).isEqualByComparingTo(new BigDecimal("88.00"));
+        assertThat(saved.getOccurrenceScore()).isEqualByComparingTo(new BigDecimal("1.0000"));
+        assertThat(saved.getDetectionScore()).isEqualByComparingTo(new BigDecimal("0.7800"));
+        assertThat(saved.getPriorityScore()).isEqualByComparingTo(new BigDecimal("313.28"));
+        assertThat(saved.getSeverity()).isEqualTo(AlertSeverity.DANGER);
+        assertThat(saved.getScoreCalculatedAt()).isNotNull();
     }
 
     @Test
@@ -222,5 +252,24 @@ class AlertEventSaveServiceTest {
                   "message": "alert contents"
                 }
                 """.formatted(eventId, alertType, processCode);
+    }
+
+    private String messageWithRiskAndEventKey(
+            String eventId,
+            String riskScore,
+            String eventKey
+    ) {
+
+        return """
+                {
+                  "eventId": "%s",
+                  "alertType": "PROCESS",
+                  "processCode": "PAINT",
+                  "eventKey": "%s",
+                  "title": "alert title",
+                  "message": "alert contents",
+                  "riskScore": %s
+                }
+                """.formatted(eventId, eventKey, riskScore);
     }
 }

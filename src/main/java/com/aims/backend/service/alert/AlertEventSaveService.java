@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Set;
@@ -27,6 +28,17 @@ public class AlertEventSaveService {
 
     private static final DateTimeFormatter LOG_NO_TIME_FORMAT =
             DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+    private static final int OCCURRENCE_LOOKBACK_DAYS = 30;
+    private static final BigDecimal ZERO_SCORE =
+            BigDecimal.ZERO.setScale(4, RoundingMode.HALF_UP);
+    private static final BigDecimal ONE_SCORE =
+            BigDecimal.ONE.setScale(4, RoundingMode.HALF_UP);
+    private static final BigDecimal INCOMPLETE_DETECTION_WEIGHT =
+            new BigDecimal("0.7");
+    private static final BigDecimal NOT_NEEDED_DETECTION_WEIGHT =
+            new BigDecimal("0.2");
+    private static final BigDecimal DANGER_PRIORITY_THRESHOLD =
+            new BigDecimal("250");
     private static final Set<ProcessCode> ALERT_PROCESS_CODES =
             Set.of(ProcessCode.PRESS, ProcessCode.BODY, ProcessCode.PAINT, ProcessCode.ASSEMBLY);
 
@@ -96,6 +108,18 @@ public class AlertEventSaveService {
                 defaultTitle(alertType, processCode, text(root, "title"));
         String contents =
                 defaultContents(alertType, processCode, equipmentId, text(root, "contents", "message", "description"));
+        String eventKey =
+                eventKey(root, alertType, processCode, equipmentId, title, eventId);
+        BigDecimal riskScore =
+                score(root, BigDecimal.ZERO, BigDecimal.valueOf(100), "riskScore", "risk_score");
+        BigDecimal occurrenceScore =
+                calculateOccurrenceScore(eventKey);
+        BigDecimal detectionScore =
+                calculateDetectionScore(eventKey);
+        BigDecimal priorityScore =
+                calculatePriorityScore(riskScore, occurrenceScore, detectionScore);
+        LocalDateTime scoreCalculatedAt =
+                LocalDateTime.now();
 
         return AlertEvent.builder()
                 .logNo(generateLogNo())
@@ -103,16 +127,16 @@ public class AlertEventSaveService {
                 .alertType(alertType)
                 .processCode(processCode)
                 .equipmentId(equipmentId)
-                .eventKey(eventKey(root, alertType, processCode, equipmentId, title, eventId))
-                .riskScore(score(root, BigDecimal.ZERO, BigDecimal.valueOf(100), "riskScore", "risk_score"))
-                .occurrenceScore(score(root, BigDecimal.ZERO, BigDecimal.ONE, "occurrenceScore", "occurrence_score"))
-                .detectionScore(score(root, BigDecimal.ZERO, BigDecimal.ONE, "detectionScore", "detection_score"))
-                .priorityScore(decimal(root, "priorityScore", "priority_score"))
-                .severity(parseSeverity(text(root, "severity")))
+                .eventKey(eventKey)
+                .riskScore(riskScore)
+                .occurrenceScore(occurrenceScore)
+                .detectionScore(detectionScore)
+                .priorityScore(priorityScore)
+                .severity(calculateSeverity(priorityScore))
                 .title(truncate(title, 100))
                 .contents(truncate(contents, 500))
-                .actionStatus(AlertActionStatus.PENDING)
-                .scoreCalculatedAt(localDateTime(root, "scoreCalculatedAt", "score_calculated_at"))
+                .actionStatus(AlertActionStatus.INCOMPLETE)
+                .scoreCalculatedAt(scoreCalculatedAt)
                 .build();
     }
 
@@ -144,21 +168,89 @@ public class AlertEventSaveService {
         }
     }
 
-    private AlertSeverity parseSeverity(String value) {
+    private BigDecimal calculateOccurrenceScore(String eventKey) {
 
-        if (isBlank(value)) {
+        LocalDateTime from =
+                LocalDateTime.now().minusDays(OCCURRENCE_LOOKBACK_DAYS);
+        long eventKeyCount =
+                alertEventRepository.countByEventKeyAndCreatedAtGreaterThanEqual(eventKey, from);
+        Long maxEventKeyCount =
+                alertEventRepository.findMaxEventKeyCountSince(from);
+
+        if (eventKeyCount == 0 || maxEventKeyCount == null || maxEventKeyCount == 0) {
+            return ZERO_SCORE;
+        }
+
+        BigDecimal occurrenceScore =
+                BigDecimal.valueOf(eventKeyCount)
+                        .divide(BigDecimal.valueOf(maxEventKeyCount), 4, RoundingMode.HALF_UP);
+        return clampRatio(occurrenceScore);
+    }
+
+    private BigDecimal calculateDetectionScore(String eventKey) {
+
+        long completedCount =
+                alertEventRepository.countByEventKeyAndActionStatus(eventKey, AlertActionStatus.COMPLETED);
+        long incompleteCount =
+                alertEventRepository.countByEventKeyAndActionStatus(eventKey, AlertActionStatus.INCOMPLETE);
+        long notNeededCount =
+                alertEventRepository.countByEventKeyAndActionStatus(eventKey, AlertActionStatus.NOT_NEEDED);
+        long totalCount =
+                completedCount + incompleteCount + notNeededCount;
+
+        if (totalCount == 0) {
+            return ZERO_SCORE;
+        }
+
+        BigDecimal weightedSum =
+                BigDecimal.valueOf(completedCount)
+                        .add(BigDecimal.valueOf(incompleteCount).multiply(INCOMPLETE_DETECTION_WEIGHT))
+                        .add(BigDecimal.valueOf(notNeededCount).multiply(NOT_NEEDED_DETECTION_WEIGHT));
+        BigDecimal detectionScore =
+                weightedSum.divide(BigDecimal.valueOf(totalCount), 4, RoundingMode.HALF_UP);
+
+        return clampRatio(detectionScore);
+    }
+
+    private BigDecimal calculatePriorityScore(
+            BigDecimal riskScore,
+            BigDecimal occurrenceScore,
+            BigDecimal detectionScore
+    ) {
+
+        if (riskScore == null) {
             return null;
         }
 
-        return switch (normalize(value)) {
-            case "CRITICAL", "DANGER", "HIGH" -> AlertSeverity.DANGER;
-            case "WARNING", "MEDIUM" -> AlertSeverity.WARNING;
-            case "CAUTION", "LOW", "NORMAL" -> AlertSeverity.CAUTION;
-            default -> {
-                log.warn("Unknown alert severity received. severity={}", value);
-                yield null;
-            }
-        };
+        return riskScore
+                .multiply(BigDecimal.ONE.add(occurrenceScore))
+                .multiply(BigDecimal.ONE.add(detectionScore))
+                .setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private AlertSeverity calculateSeverity(BigDecimal priorityScore) {
+
+        if (priorityScore == null) {
+            return null;
+        }
+
+        if (priorityScore.compareTo(DANGER_PRIORITY_THRESHOLD) >= 0) {
+            return AlertSeverity.DANGER;
+        }
+
+        return AlertSeverity.CAUTION;
+    }
+
+    private BigDecimal clampRatio(BigDecimal value) {
+
+        if (value.compareTo(BigDecimal.ZERO) < 0) {
+            return ZERO_SCORE;
+        }
+        if (value.compareTo(BigDecimal.ONE) > 0) {
+            return ONE_SCORE;
+        }
+
+        return value.setScale(4, RoundingMode.HALF_UP);
     }
 
     private String defaultTitle(
@@ -297,25 +389,6 @@ public class AlertEventSaveService {
         }
 
         return null;
-    }
-
-    private LocalDateTime localDateTime(
-            JsonNode root,
-            String... names
-    ) {
-
-        String value =
-                text(root, names);
-        if (isBlank(value)) {
-            return null;
-        }
-
-        try {
-            return LocalDateTime.parse(value.trim());
-        } catch (Exception e) {
-            log.warn("Invalid LocalDateTime value. names={}, value={}", names, value);
-            return null;
-        }
     }
 
     private String text(
