@@ -31,7 +31,7 @@ class AlertEventRepositoryTest {
                         .eventKey("PROCESS:PAINT:repo test")
                         .title("repo test")
                         .contents("repo test contents")
-                        .actionStatus(AlertActionStatus.PENDING)
+                        .actionStatus(AlertActionStatus.INCOMPLETE)
                         .build();
 
         alertEventRepository.saveAndFlush(alertEvent);
@@ -42,6 +42,6 @@ class AlertEventRepositoryTest {
                 .isPresent()
                 .get()
                 .extracting(AlertEvent::getActionStatus)
-                .isEqualTo(AlertActionStatus.PENDING);
+                .isEqualTo(AlertActionStatus.INCOMPLETE);
     }
 }
