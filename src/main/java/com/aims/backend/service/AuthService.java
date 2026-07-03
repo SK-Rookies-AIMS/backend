@@ -6,6 +6,7 @@ import com.aims.backend.domain.user.UserRole;
 import com.aims.backend.dto.auth.LoginRequest;
 import com.aims.backend.dto.auth.RefreshRequest;
 import com.aims.backend.dto.auth.SignUpRequest;
+import com.aims.backend.dto.auth.PasswordChangeRequest;
 import com.aims.backend.dto.auth.TokenResponse;
 import com.aims.backend.exception.GeneralException;
 import com.aims.backend.repository.UserRepository;
@@ -15,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +26,9 @@ import java.time.LocalDateTime;
 import java.time.Period;
 import java.util.Optional;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -33,6 +38,32 @@ public class AuthService {
     private final TokenProvider tokenProvider;
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder bCryptPasswordEncoder;
+
+    public void changePassword(PasswordChangeRequest.PasswordChangeDTO request) {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String email;
+
+        if (principal instanceof TokenProvider.JwtPrincipal jwtPrincipal) {
+            email = jwtPrincipal.email();
+        } else {
+            email = SecurityContextHolder.getContext().getAuthentication().getName();
+        }
+
+        log.info("Attempting to change password for user: {}", email);
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> {
+                    log.error("User not found with email: {}", email);
+                    return new GeneralException(ErrorStatus.USER_NOT_FOUND);
+                });
+
+        if (!bCryptPasswordEncoder.matches(request.getOldPassword(), user.getPassword())) {
+            log.error("Password mismatch for user: {}", email);
+            throw new GeneralException(ErrorStatus.PASSWORD_MISMATCH);
+        }
+
+        user.setPassword(bCryptPasswordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+    }
 
     public TokenResponse.TokenDTO login(LoginRequest.LoginDTO loginDTO) {
         Authentication authentication = authenticationManager.authenticate(

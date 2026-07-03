@@ -3,6 +3,7 @@ package com.aims.backend.controller;
 import com.aims.backend.common.response.ApiResponse;
 import com.aims.backend.domain.user.User;
 import com.aims.backend.dto.auth.LoginRequest;
+import com.aims.backend.dto.auth.PasswordChangeRequest;
 import com.aims.backend.dto.auth.RefreshRequest;
 import com.aims.backend.dto.auth.SignUpRequest;
 import com.aims.backend.dto.auth.TokenResponse;
@@ -15,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -40,6 +42,13 @@ public class AuthController {
     public ApiResponse<String> signUp(@Valid @RequestBody SignUpRequest signUpRequest) {
         authService.signUp(signUpRequest);
         return ApiResponse.success(null, "회원가입이 완료되었습니다.");
+    }
+
+    @Operation(summary = "비밀번호 변경", description = "비밀번호를 변경합니다.")
+    @PutMapping("/password")
+    public ApiResponse<String> changePassword(@Valid @RequestBody PasswordChangeRequest.PasswordChangeDTO passwordChangeDTO) {
+        authService.changePassword(passwordChangeDTO);
+        return ApiResponse.success(null, "비밀번호가 변경되었습니다.");
     }
 
     @Operation(summary = "토큰 갱신", description = "Refresh Token을 사용하여 Access Token을 갱신합니다.")
