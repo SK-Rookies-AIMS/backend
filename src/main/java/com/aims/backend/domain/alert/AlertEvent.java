@@ -87,4 +87,30 @@ public class AlertEvent {
 
     @Column(name = "resolved_at")
     private LocalDateTime resolvedAt;
+
+    public void updateAction(
+            String actionBy,
+            AlertActionStatus actionStatus,
+            String reason
+    ) {
+
+        if (actionBy != null) {
+            this.actionBy = actionBy;
+        }
+
+        if (actionStatus != null) {
+            this.actionStatus = actionStatus;
+
+            if (actionStatus == AlertActionStatus.COMPLETED
+                    || actionStatus == AlertActionStatus.NOT_NEEDED) {
+                this.resolvedAt = LocalDateTime.now();
+            } else if (actionStatus == AlertActionStatus.INCOMPLETE) {
+                this.resolvedAt = null;
+            }
+        }
+
+        if (reason != null) {
+            this.reason = reason;
+        }
+    }
 }
