@@ -2,8 +2,8 @@ logging:
   level:
     root: info
     com.aims.assembly: debug
-    org.hibernate.SQL: debug
-    org.hibernate.orm.jdbc.bind: trace
+    org.hibernate.SQL: WARN
+    org.hibernate.orm.jdbc.bind: WARN
   file:
     path: ${LOG_PATH:logs/local}
 

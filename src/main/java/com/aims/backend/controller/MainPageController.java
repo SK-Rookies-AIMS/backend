@@ -3,6 +3,7 @@ package com.aims.backend.controller;
 import com.aims.backend.common.response.ApiResponse;
 import com.aims.backend.config.jwt.TokenProvider;
 import com.aims.backend.dto.mainpage.UserTaskResponse;
+import com.aims.backend.dto.mainpage.WeeklyProductionResponse;
 import com.aims.backend.service.MainPageService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
@@ -44,5 +45,12 @@ public class MainPageController {
 
         List<UserTaskResponse.MainPageTaskDTO> userTasks = mainPageService.getUserTasks(id);
         return ApiResponse.success(userTasks, "사용자 작업 조회 성공입니다.");
+    }
+
+    @Operation(summary = "주간 생산 추이 조회", description = "최근 7일간의 생산 추이를 조회합니다. total_count가 100인 데이터를 기준으로 합니다.")
+    @GetMapping("/recent_production")
+    public ApiResponse<List<WeeklyProductionResponse>> getWeeklyProductionTrend() {
+        List<WeeklyProductionResponse> weeklyProduction = mainPageService.getWeeklyProductionTrend();
+        return ApiResponse.success(weeklyProduction, "최근 생산 추이 조회 성공입니다.");
     }
 }

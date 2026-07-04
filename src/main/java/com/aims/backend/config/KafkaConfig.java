@@ -2,6 +2,7 @@ package com.aims.backend.config;
 
 import com.aims.backend.properties.KafkaCustomProperties;
 import lombok.RequiredArgsConstructor;
+import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -15,6 +16,7 @@ import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
+import org.springframework.kafka.listener.ContainerProperties;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -28,11 +30,33 @@ public class KafkaConfig {
 
     @Bean
     public ProducerFactory<String, String> producerFactory() {
-        Map<String, Object> properties = new HashMap<>();
-        properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaCustomProperties.getBootstrapServers());
-        properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        properties.put(ProducerConfig.ACKS_CONFIG, "all");
+
+        Map<String, Object> properties = commonProperties();
+
+        properties.put(
+                ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
+                kafkaCustomProperties.getBootstrapServers()
+        );
+
+        properties.put(
+                ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
+                StringSerializer.class
+        );
+
+        properties.put(
+                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
+                StringSerializer.class
+        );
+
+        properties.put(
+                ProducerConfig.ACKS_CONFIG,
+                "all"
+        );
+
+        properties.put(
+                ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG,
+                true
+        );
 
         return new DefaultKafkaProducerFactory<>(properties);
     }
@@ -44,21 +68,99 @@ public class KafkaConfig {
 
     @Bean
     public ConsumerFactory<String, String> consumerFactory() {
-        Map<String, Object> properties = new HashMap<>();
-        properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaCustomProperties.getBootstrapServers());
-        properties.put(ConsumerConfig.GROUP_ID_CONFIG, kafkaCustomProperties.getGroupId());
-        properties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, kafkaCustomProperties.getAutoOffsetReset());
-        properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+
+        Map<String, Object> properties = commonProperties();
+
+        properties.put(
+                ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
+                kafkaCustomProperties.getBootstrapServers()
+        );
+
+        properties.put(
+                ConsumerConfig.GROUP_ID_CONFIG,
+                kafkaCustomProperties.getGroupId()
+        );
+
+        properties.put(
+                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
+                kafkaCustomProperties.getAutoOffsetReset()
+        );
+
+        properties.put(
+                ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,
+                false
+        );
+
+        properties.put(
+                ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
+                StringDeserializer.class
+        );
+
+        properties.put(
+                ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
+                StringDeserializer.class
+        );
 
         return new DefaultKafkaConsumerFactory<>(properties);
     }
 
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory() {
+
         ConcurrentKafkaListenerContainerFactory<String, String> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConsumerFactory(consumerFactory());
+
+        factory.setConsumerFactory(
+                consumerFactory()
+        );
+
+        factory.getContainerProperties()
+                .setAckMode(
+                        ContainerProperties.AckMode.RECORD
+                );
+
         return factory;
+    }
+
+    private Map<String, Object> commonProperties() {
+
+        Map<String, Object> properties =
+                new HashMap<>();
+
+        properties.put(
+                CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
+                kafkaCustomProperties.getSecurityProtocol()
+        );
+
+        putIfPresent(
+                properties,
+                "sasl.mechanism",
+                kafkaCustomProperties.getSaslMechanism()
+        );
+
+        putIfPresent(
+                properties,
+                "sasl.jaas.config",
+                kafkaCustomProperties.getSaslJaasConfig()
+        );
+
+        putIfPresent(
+                properties,
+                "sasl.client.callback.handler.class",
+                kafkaCustomProperties.getSaslClientCallbackHandlerClass()
+        );
+
+        return properties;
+    }
+
+    private void putIfPresent(
+            Map<String, Object> properties,
+            String key,
+            String value
+    ) {
+
+        if (value != null && !value.isBlank()) {
+            properties.put(key, value);
+        }
     }
 }
