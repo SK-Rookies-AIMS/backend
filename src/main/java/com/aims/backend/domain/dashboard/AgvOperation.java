@@ -18,6 +18,9 @@ public class AgvOperation extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "event_id")
+    private String eventId;
+
     @Column(name = "car_master_id")
     private Long carMasterId;
 
@@ -40,11 +43,13 @@ public class AgvOperation extends BaseEntity {
     private Integer laneNo;
 
     public void dispatch(
+            String eventId,
             Long carMasterId,
             ProcessCode from,
             ProcessCode to,
             String routeCode
     ) {
+        this.eventId = eventId;
         this.carMasterId = carMasterId;
         this.currentProcess = from;
         this.targetProcess = to;
@@ -52,11 +57,15 @@ public class AgvOperation extends BaseEntity {
         this.agvStatus = AgvStatus.MOVING;
     }
 
-    public void changeToReturning() {
-        ProcessCode arrivedProcess = this.targetProcess;
-        ProcessCode homeProcess = this.currentProcess;
+    public void changeToUnloading() {
+        this.currentProcess = this.targetProcess;
+        this.agvStatus = AgvStatus.UNLOADING;
+    }
 
-        this.carMasterId = null;
+    public void changeToReturning() {
+        ProcessCode arrivedProcess = this.currentProcess;
+        ProcessCode homeProcess = getHomeProcessByRouteCode(this.routeCode);
+
         this.currentProcess = arrivedProcess;
         this.targetProcess = homeProcess;
         this.agvStatus = AgvStatus.RETURNING;
@@ -64,13 +73,31 @@ public class AgvOperation extends BaseEntity {
 
     public void changeToWaiting(
             ProcessCode homeProcess,
-            ProcessCode nextProcess,
+            ProcessCode nextTarget,
             String routeCode
     ) {
+        this.eventId = null;
         this.carMasterId = null;
         this.currentProcess = homeProcess;
-        this.targetProcess = nextProcess;
+        this.targetProcess = nextTarget;
         this.routeCode = routeCode;
         this.agvStatus = AgvStatus.WAITING;
+    }
+
+    private ProcessCode getHomeProcessByRouteCode(String routeCode) {
+        if ("PRESS_BODY".equals(routeCode)) {
+            return ProcessCode.PRESS;
+        }
+        if ("BODY_PAINT".equals(routeCode)) {
+            return ProcessCode.BODY;
+        }
+        if ("PAINT_ASSEMBLY".equals(routeCode)) {
+            return ProcessCode.PAINT;
+        }
+        if ("ASSEMBLY_INSPECTION".equals(routeCode)) {
+            return ProcessCode.ASSEMBLY;
+        }
+
+        return this.currentProcess;
     }
 }
