@@ -5,6 +5,7 @@ import com.aims.backend.domain.alert.AlertEvent;
 import com.aims.backend.domain.alert.AlertSeverity;
 import com.aims.backend.domain.alert.AlertType;
 import com.aims.backend.domain.dashboard.enums.ProcessCode;
+import com.aims.backend.dto.alert.AlertRealtimeMessage;
 import com.aims.backend.repository.alert.AlertEventRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -44,34 +45,54 @@ public class AlertEventSaveService {
 
     private final AlertEventRepository alertEventRepository;
     private final ObjectMapper objectMapper;
+    private final AlertWebSocketPublisher alertWebSocketPublisher;
 
     @Transactional
     public void save(String message) {
 
+        String eventId = null;
         try {
             JsonNode root =
                     objectMapper.readTree(message);
+            CalculatedAlert calculatedAlert =
+                    toCalculatedAlert(root);
+
+            if (calculatedAlert == null) {
+                return;
+            }
+
+            eventId =
+                    calculatedAlert.eventId();
+
+            if (alertEventRepository.existsByEventId(eventId)) {
+                log.info("Duplicate alert event skipped. eventId={}", eventId);
+                return;
+            }
+
+            publishRealtimeAlert(calculatedAlert);
+
             AlertEvent alertEvent =
-                    toAlertEvent(root);
+                    toAlertEvent(calculatedAlert);
 
-            if (alertEvent == null) {
-                return;
-            }
-
-            if (alertEventRepository.existsByEventId(alertEvent.getEventId())) {
-                log.info("Duplicate alert event skipped. eventId={}", alertEvent.getEventId());
-                return;
-            }
-
-            alertEventRepository.saveAndFlush(alertEvent);
+            AlertEvent saved =
+                    alertEventRepository.saveAndFlush(alertEvent);
+            AlertEvent savedLog =
+                    saved == null ? alertEvent : saved;
+            log.info(
+                    "AlertEvent saved. logNo={}, eventId={}, priorityScore={}, severity={}",
+                    savedLog.getLogNo(),
+                    savedLog.getEventId(),
+                    savedLog.getPriorityScore(),
+                    savedLog.getSeverity()
+            );
         } catch (DataIntegrityViolationException e) {
-            log.info("Duplicate or invalid alert event skipped. message={}", message, e);
+            log.error("AlertEvent save failed. eventId={}", eventId, e);
         } catch (Exception e) {
-            log.error("Failed to save alert event. message={}", message, e);
+            log.error("AlertEvent save failed. eventId={}", eventId, e);
         }
     }
 
-    private AlertEvent toAlertEvent(JsonNode root) {
+    private CalculatedAlert toCalculatedAlert(JsonNode root) {
 
         String eventId =
                 text(root, "eventId", "event_id");
@@ -112,31 +133,116 @@ public class AlertEventSaveService {
                 eventKey(root, alertType, processCode, equipmentId, title, eventId);
         BigDecimal riskScore =
                 score(root, BigDecimal.ZERO, BigDecimal.valueOf(100), "riskScore", "risk_score");
+        if (riskScore == null) {
+            log.warn("Alert event skipped. riskScore is missing, invalid, or out of range. eventId={}", eventId);
+            return null;
+        }
+        log.info("Parsed alert payload. eventId={}, eventKey={}, riskScore={}", eventId, eventKey, riskScore);
+
         BigDecimal occurrenceScore =
                 calculateOccurrenceScore(eventKey);
         BigDecimal detectionScore =
                 calculateDetectionScore(eventKey);
         BigDecimal priorityScore =
                 calculatePriorityScore(riskScore, occurrenceScore, detectionScore);
+        AlertSeverity severity =
+                calculateSeverity(priorityScore);
         LocalDateTime scoreCalculatedAt =
                 LocalDateTime.now();
 
+        log.info(
+                "Adaptive eRPN calculated. eventId={}, riskScore={}, occurrenceScore={}, detectionScore={}, priorityScore={}, severity={}",
+                eventId,
+                riskScore,
+                occurrenceScore,
+                detectionScore,
+                priorityScore,
+                severity
+        );
+
+        return new CalculatedAlert(
+                eventId,
+                alertType,
+                processCode,
+                equipmentId,
+                eventKey,
+                riskScore,
+                occurrenceScore,
+                detectionScore,
+                priorityScore,
+                severity,
+                title,
+                contents,
+                AlertActionStatus.INCOMPLETE,
+                scoreCalculatedAt
+        );
+    }
+
+    private void publishRealtimeAlert(CalculatedAlert calculatedAlert) {
+
+        AlertRealtimeMessage message =
+                AlertRealtimeMessage.of(
+                        calculatedAlert.eventId(),
+                        calculatedAlert.alertType(),
+                        calculatedAlert.processCode(),
+                        calculatedAlert.equipmentId(),
+                        calculatedAlert.eventKey(),
+                        calculatedAlert.riskScore(),
+                        calculatedAlert.occurrenceScore(),
+                        calculatedAlert.detectionScore(),
+                        calculatedAlert.priorityScore(),
+                        calculatedAlert.severity(),
+                        calculatedAlert.title(),
+                        calculatedAlert.contents(),
+                        calculatedAlert.actionStatus(),
+                        calculatedAlert.scoreCalculatedAt()
+                );
+
+        try {
+            log.info(
+                    "Alert websocket publish start. destination={}, eventId={}",
+                    AlertWebSocketPublisher.ALERT_DESTINATION,
+                    calculatedAlert.eventId()
+            );
+            alertWebSocketPublisher.publish(message);
+            log.info(
+                    "Alert websocket publish completed. destination={}, eventId={}",
+                    AlertWebSocketPublisher.ALERT_DESTINATION,
+                    calculatedAlert.eventId()
+            );
+        } catch (Exception e) {
+            log.warn("Alert websocket publish failed. eventId={}", calculatedAlert.eventId(), e);
+        }
+    }
+
+    private AlertEvent toAlertEvent(CalculatedAlert calculatedAlert) {
+
+        log.info(
+                "AlertEvent build values. eventId={}, occurrenceScore={}, detectionScore={}, priorityScore={}, severity={}, scoreCalculatedAt={}",
+                calculatedAlert.eventId(),
+                calculatedAlert.occurrenceScore(),
+                calculatedAlert.detectionScore(),
+                calculatedAlert.priorityScore(),
+                calculatedAlert.severity(),
+                calculatedAlert.scoreCalculatedAt()
+        );
+
         return AlertEvent.builder()
                 .logNo(generateLogNo())
-                .eventId(truncate(eventId.trim(), 100))
-                .alertType(alertType)
-                .processCode(processCode)
-                .equipmentId(equipmentId)
-                .eventKey(eventKey)
-                .riskScore(riskScore)
-                .occurrenceScore(occurrenceScore)
-                .detectionScore(detectionScore)
-                .priorityScore(priorityScore)
-                .severity(calculateSeverity(priorityScore))
-                .title(truncate(title, 100))
-                .contents(truncate(contents, 500))
-                .actionStatus(AlertActionStatus.INCOMPLETE)
-                .scoreCalculatedAt(scoreCalculatedAt)
+                .eventId(truncate(calculatedAlert.eventId().trim(), 100))
+                .alertType(calculatedAlert.alertType())
+                .processCode(calculatedAlert.processCode())
+                .equipmentId(calculatedAlert.equipmentId())
+                .eventKey(calculatedAlert.eventKey())
+                .riskScore(calculatedAlert.riskScore())
+                .occurrenceScore(calculatedAlert.occurrenceScore())
+                .detectionScore(calculatedAlert.detectionScore())
+                .priorityScore(calculatedAlert.priorityScore())
+                .severity(calculatedAlert.severity())
+                .title(truncate(calculatedAlert.title(), 100))
+                .contents(truncate(calculatedAlert.contents(), 500))
+                .actionStatus(calculatedAlert.actionStatus())
+                .scoreCalculatedAt(calculatedAlert.scoreCalculatedAt())
                 .build();
     }
 
@@ -457,5 +563,23 @@ public class AlertEventSaveService {
         }
 
         return value.substring(0, maxLength);
+    }
+
+    private record CalculatedAlert(
+            String eventId,
+            AlertType alertType,
+            ProcessCode processCode,
+            Long equipmentId,
+            String eventKey,
+            BigDecimal riskScore,
+            BigDecimal occurrenceScore,
+            BigDecimal detectionScore,
+            BigDecimal priorityScore,
+            AlertSeverity severity,
+            String title,
+            String contents,
+            AlertActionStatus actionStatus,
+            LocalDateTime scoreCalculatedAt
+    ) {
     }
 }
