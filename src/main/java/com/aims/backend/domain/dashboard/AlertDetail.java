@@ -86,7 +86,6 @@ public class AlertDetail{
         }
         
         if (actionStatus != null) {
-            // 상태가 실제로 변경되었을 때만 처리하여 완료 시점(resolvedAt)의 중복 갱신이나 유실을 방지합니다.
             if (!actionStatus.equals(this.actionStatus)) {
                 this.actionStatus = actionStatus;
                 if (actionStatus.equalsIgnoreCase("완료") || 

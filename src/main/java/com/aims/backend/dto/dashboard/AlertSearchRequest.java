@@ -17,11 +17,11 @@ public class AlertSearchRequest {
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
     private LocalDateTime endDate;
     private Severity severity;
-    private String stationCode; // completed, required, not_required
+    private String stationCode; // 'PENDING','COMPLETED','INCOMPLETE','NOT_NEEDED'
     private ProcessCode processCode; // ASSEMBLY, BODY, PAINT, PRESS
     private Double priorityScore;
     private String titleOrContents;
     
     private int page = 0;
-    private int size = 10; // default 10
+    private int size = 10;
 }
