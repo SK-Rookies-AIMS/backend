@@ -1,4 +1,4 @@
-package com.aims.backend.domain.dashboard.enums;
+package com.aims.backend.domain.alert;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -6,9 +6,8 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum Severity {
-    CRITICAL("치명적"),
-    NORMAL("보통"),
-    WARNING("경고");
+    DANGER("위험"),
+    CAUTION("주의");
 
     private final String displayName;
 }

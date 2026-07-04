@@ -1,7 +1,8 @@
 package com.aims.backend.dto.dashboard;
 
+import com.aims.backend.domain.alert.Severity;
 import com.aims.backend.domain.dashboard.enums.ProcessCode;
-import com.aims.backend.domain.dashboard.enums.Severity;
+
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -15,7 +16,7 @@ public class AlertSearchRequest {
     private LocalDateTime startDate;
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
     private LocalDateTime endDate;
-    private Severity severity; // WARNING, CRITICAL, NORMAL
+    private Severity severity;
     private String stationCode; // completed, required, not_required
     private ProcessCode processCode; // ASSEMBLY, BODY, PAINT, PRESS
     private Double priorityScore;

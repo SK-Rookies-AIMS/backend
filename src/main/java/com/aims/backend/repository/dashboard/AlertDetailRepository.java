@@ -6,5 +6,5 @@ import org.springframework.data.querydsl.QuerydslPredicateExecutor;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface AlertDetailRepository extends JpaRepository<AlertDetail, Long>, QuerydslPredicateExecutor<AlertDetail> {
+public interface AlertDetailRepository extends JpaRepository<AlertDetail, String>, QuerydslPredicateExecutor<AlertDetail> {
 }
