@@ -7,6 +7,8 @@ public final class JwtConstants {
     public static final String ROLE_CLAIM = "role";
     public static final String EMP_NO_CLAIM = "empNo";
     public static final String ID_CLAIM = "id";
+    public static final String NAME_CLAIM = "name";
+    public static final String WORK_EXPERIENCE_CLAIM = "workExperience";
 
     private JwtConstants() {
     }

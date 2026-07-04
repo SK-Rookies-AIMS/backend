@@ -48,6 +48,14 @@ public class CustomUserDetailsService implements UserDetailsService {
             return user.getEmail();
         }
 
+        public String getName() {
+            return user.getName();
+        }
+
+        public int getWorkExperience() {
+            return user.getWorkExperience();
+        }
+
         @Override
         public Collection<? extends GrantedAuthority> getAuthorities() {
             return Collections.singletonList(new SimpleGrantedAuthority(user.getRole().name()));
