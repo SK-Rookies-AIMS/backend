@@ -12,13 +12,12 @@ public enum OperationStatus {
 
     RUNNING("가동"),
 
-    IDLE("대기"),
 
     STOPPED("정지"),
     
     FAULT("고장"),
-
-    MAINTENANCE("정비");
+    
+    WARNING("경고");
 
 
     /**

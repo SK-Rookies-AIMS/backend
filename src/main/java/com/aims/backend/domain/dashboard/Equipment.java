@@ -42,9 +42,6 @@ public class Equipment {
     @Column(name = "current_status")
     private OperationStatus currentStatus;
 
-    /*@Column(name = "health_status")
-    private String healthStatus;*/
-
     @Column(name = "last_fault_time")
     private LocalDateTime lastFaultTime;
 
