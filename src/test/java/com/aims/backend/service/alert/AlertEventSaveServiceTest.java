@@ -5,12 +5,14 @@ import com.aims.backend.domain.alert.AlertEvent;
 import com.aims.backend.domain.alert.AlertSeverity;
 import com.aims.backend.domain.alert.AlertType;
 import com.aims.backend.domain.dashboard.enums.ProcessCode;
+import com.aims.backend.dto.alert.AlertRealtimeMessage;
 import com.aims.backend.repository.alert.AlertEventRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -20,6 +22,8 @@ import java.time.LocalDateTime;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -30,12 +34,15 @@ class AlertEventSaveServiceTest {
     @Mock
     private AlertEventRepository alertEventRepository;
 
+    @Mock
+    private AlertWebSocketPublisher alertWebSocketPublisher;
+
     private AlertEventSaveService alertEventSaveService;
 
     @BeforeEach
     void setUp() {
         alertEventSaveService =
-                new AlertEventSaveService(alertEventRepository, new ObjectMapper());
+                new AlertEventSaveService(alertEventRepository, new ObjectMapper(), alertWebSocketPublisher);
     }
 
     @Test
@@ -59,6 +66,12 @@ class AlertEventSaveServiceTest {
         assertThat(saved.getProcessCode()).isEqualTo(ProcessCode.PAINT);
         assertThat(saved.getEquipmentId()).isNull();
         assertThat(saved.getRiskScore()).isEqualByComparingTo(new BigDecimal("77.12"));
+        assertThat(saved.getOccurrenceScore()).isEqualByComparingTo(new BigDecimal("0.0000"));
+        assertThat(saved.getDetectionScore()).isEqualByComparingTo(new BigDecimal("0.0000"));
+        assertThat(saved.getPriorityScore()).isEqualByComparingTo(new BigDecimal("77.12"));
+        assertThat(saved.getSeverity()).isEqualTo(AlertSeverity.CAUTION);
+        assertThat(saved.getScoreCalculatedAt()).isNotNull();
+        verify(alertWebSocketPublisher).publish(any(AlertRealtimeMessage.class));
     }
 
     @Test
@@ -70,7 +83,8 @@ class AlertEventSaveServiceTest {
                   "processCode": "BODY",
                   "equipmentId": 20,
                   "title": "equipment warning",
-                  "contents": "equipment abnormal"
+                  "contents": "equipment abnormal",
+                  "riskScore": 50.00
                 }
                 """);
 
@@ -98,7 +112,8 @@ class AlertEventSaveServiceTest {
                   "processCode": "ASSEMBLY",
                   "equipmentId": 30,
                   "title": "equipment warning",
-                  "message": "equipment abnormal"
+                  "message": "equipment abnormal",
+                  "riskScore": 50.00
                 }
                 """);
 
@@ -112,6 +127,7 @@ class AlertEventSaveServiceTest {
         alertEventSaveService.save(baseMessage("event-equipment-missing-id", "EQUIPMENT", "BODY"));
 
         verify(alertEventRepository, never()).saveAndFlush(any());
+        verify(alertWebSocketPublisher, never()).publish(any());
     }
 
     @Test
@@ -122,10 +138,11 @@ class AlertEventSaveServiceTest {
         alertEventSaveService.save(baseMessage("event-duplicate-1", "PROCESS", "PAINT"));
 
         verify(alertEventRepository, never()).saveAndFlush(any());
+        verify(alertWebSocketPublisher, never()).publish(any());
     }
 
     @Test
-    void storesNullWhenRiskScoreIsOutOfRange() {
+    void skipsWhenRiskScoreIsOutOfRange() {
         alertEventSaveService.save("""
                 {
                   "eventId": "event-risk-out-of-range",
@@ -137,9 +154,8 @@ class AlertEventSaveServiceTest {
                 }
                 """);
 
-        AlertEvent saved =
-                capturedAlertEvent();
-        assertThat(saved.getRiskScore()).isNull();
+        verify(alertEventRepository, never()).saveAndFlush(any());
+        verify(alertWebSocketPublisher, never()).publish(any());
     }
 
     @Test
@@ -148,7 +164,8 @@ class AlertEventSaveServiceTest {
                 {
                   "eventId": "event-default-text",
                   "alertType": "PROCESS",
-                  "processCode": "PAINT"
+                  "processCode": "PAINT",
+                  "riskScore": 50.00
                 }
                 """);
 
@@ -192,6 +209,28 @@ class AlertEventSaveServiceTest {
         assertThat(saved.getPriorityScore()).isEqualByComparingTo(new BigDecimal("313.28"));
         assertThat(saved.getSeverity()).isEqualTo(AlertSeverity.DANGER);
         assertThat(saved.getScoreCalculatedAt()).isNotNull();
+    }
+
+    @Test
+    void publishesRealtimeAlertBeforeSaving() {
+        alertEventSaveService.save(messageWithRiskAndEventKey("event-realtime", "88.00", "TEMP_HIGH"));
+
+        InOrder inOrder =
+                inOrder(alertWebSocketPublisher, alertEventRepository);
+        inOrder.verify(alertWebSocketPublisher).publish(any(AlertRealtimeMessage.class));
+        inOrder.verify(alertEventRepository).saveAndFlush(any(AlertEvent.class));
+    }
+
+    @Test
+    void continuesSavingWhenRealtimePublishFails() {
+        doThrow(new IllegalStateException("websocket unavailable"))
+                .when(alertWebSocketPublisher)
+                .publish(any(AlertRealtimeMessage.class));
+
+        alertEventSaveService.save(messageWithRiskAndEventKey("event-realtime-fail", "88.00", "TEMP_HIGH"));
+
+        verify(alertWebSocketPublisher).publish(any(AlertRealtimeMessage.class));
+        verify(alertEventRepository).saveAndFlush(any(AlertEvent.class));
     }
 
     @Test
@@ -249,7 +288,8 @@ class AlertEventSaveServiceTest {
                   "alertType": "%s",
                   "processCode": "%s",
                   "title": "alert title",
-                  "message": "alert contents"
+                  "message": "alert contents",
+                  "riskScore": 50.00
                 }
                 """.formatted(eventId, alertType, processCode);
     }

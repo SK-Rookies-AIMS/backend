@@ -4,5 +4,5 @@ public enum AlertActionStatus {
     COMPLETED,
     INCOMPLETE,
     NOT_NEEDED,
-    PENDING,
+    PENDING
 }

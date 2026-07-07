@@ -17,8 +17,8 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: backend-${{ github.ref_name }}
-  cancel-in-progress: true
+  group: backend-gitops-dev
+  cancel-in-progress: false
 
 env:
   AWS_REGION: ap-northeast-2
@@ -26,8 +26,10 @@ env:
   ECR_REPOSITORY: aims/backend
   NAMESPACE: aims-project
   BACKEND_CONTEXT: .
+
   INFRA_REPOSITORY: SK-Rookies-AIMS/infra
-  INFRA_MANIFEST_PATH: k8s/backend/backend.yaml
+  INFRA_BRANCH: dev
+  INFRA_MANIFEST_PATH: k8s/backend/kustomization.yaml
 
 jobs:
   deploy:
@@ -53,47 +55,113 @@ jobs:
 
       - name: Ensure ECR repository exists
         run: |
-          aws ecr describe-repositories --repository-names "$ECR_REPOSITORY" --region "$AWS_REGION" >/dev/null 2>&1 || aws ecr create-repository --repository-name "$ECR_REPOSITORY" --region "$AWS_REGION" --image-scanning-configuration scanOnPush=true --image-tag-mutability MUTABLE
+          set -euo pipefail
+
+          if ! aws ecr describe-repositories \
+            --repository-names "$ECR_REPOSITORY" \
+            --region "$AWS_REGION" \
+            > /dev/null 2>&1; then
+
+            aws ecr create-repository \
+              --repository-name "$ECR_REPOSITORY" \
+              --region "$AWS_REGION" \
+              --image-scanning-configuration scanOnPush=true \
+              --image-tag-mutability MUTABLE
+          fi
 
       - name: Build and push Docker image
         id: build-image
         run: |
+          set -euo pipefail
+
           IMAGE_TAG="${GITHUB_REF_NAME}-${GITHUB_SHA::12}"
           IMAGE_URI="${{ steps.login-ecr.outputs.registry }}/${ECR_REPOSITORY}:${IMAGE_TAG}"
           BRANCH_IMAGE_URI="${{ steps.login-ecr.outputs.registry }}/${ECR_REPOSITORY}:${GITHUB_REF_NAME}"
 
-          docker build -t "$IMAGE_URI" -t "$BRANCH_IMAGE_URI" "$BACKEND_CONTEXT"
+          echo "Building image: $IMAGE_URI"
+
+          docker build \
+            -t "$IMAGE_URI" \
+            -t "$BRANCH_IMAGE_URI" \
+            "$BACKEND_CONTEXT"
+
           docker push "$IMAGE_URI"
           docker push "$BRANCH_IMAGE_URI"
 
           echo "image_uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
+          echo "image_tag=$IMAGE_TAG" >> "$GITHUB_OUTPUT"
 
       - name: Checkout infra repository
         uses: actions/checkout@v4
         with:
           repository: ${{ env.INFRA_REPOSITORY }}
-          ref: ${{ github.ref_name }}
+          ref: ${{ env.INFRA_BRANCH }}
           token: ${{ secrets.INFRA_REPO_TOKEN }}
           path: infra
           fetch-depth: 0
 
       - name: Update kubeconfig and ensure namespace
-        if: github.ref_name == 'dev'
         run: |
-          aws eks update-kubeconfig --region "$AWS_REGION" --name "$EKS_CLUSTER_NAME"
-          kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
+          set -euo pipefail
+
+          aws eks update-kubeconfig \
+            --region "$AWS_REGION" \
+            --name "$EKS_CLUSTER_NAME"
+
+          kubectl create namespace "$NAMESPACE" \
+            --dry-run=client \
+            -o yaml |
+          kubectl apply -f -
 
       - name: Load backend runtime parameters from SSM
-        if: github.ref_name == 'dev'
         run: |
-          RDS_SECRET_ARN=$(aws ssm get-parameter --name "/aims/dev/rds/secret-arn" --region "$AWS_REGION" --query "Parameter.Value" --output text)
-          RDS_HOST=$(aws ssm get-parameter --name "/aims/dev/backend/rds-host" --region "$AWS_REGION" --query "Parameter.Value" --output text)
-          RDS_PORT=$(aws ssm get-parameter --name "/aims/dev/backend/rds-port" --region "$AWS_REGION" --query "Parameter.Value" --output text)
-          MAIN_DB_NAME=$(aws ssm get-parameter --name "/aims/dev/backend/main-db-name" --region "$AWS_REGION" --query "Parameter.Value" --output text)
-          SAMPLE_DB_NAME=$(aws ssm get-parameter --name "/aims/dev/backend/sample-db-name" --region "$AWS_REGION" --query "Parameter.Value" --output text)
-          JWT_SECRET_KEY=$(aws ssm get-parameter --name "/aims/dev/backend/jwt-secret-key" --region "$AWS_REGION" --with-decryption --query "Parameter.Value" --output text)
+          set -euo pipefail
 
-          for VALUE in "$RDS_SECRET_ARN" "$RDS_HOST" "$RDS_PORT" "$MAIN_DB_NAME" "$SAMPLE_DB_NAME" "$JWT_SECRET_KEY"; do
+          RDS_SECRET_ARN=$(aws ssm get-parameter \
+            --name "/aims/dev/rds/secret-arn" \
+            --region "$AWS_REGION" \
+            --query "Parameter.Value" \
+            --output text)
+
+          RDS_HOST=$(aws ssm get-parameter \
+            --name "/aims/dev/backend/rds-host" \
+            --region "$AWS_REGION" \
+            --query "Parameter.Value" \
+            --output text)
+
+          RDS_PORT=$(aws ssm get-parameter \
+            --name "/aims/dev/backend/rds-port" \
+            --region "$AWS_REGION" \
+            --query "Parameter.Value" \
+            --output text)
+
+          MAIN_DB_NAME=$(aws ssm get-parameter \
+            --name "/aims/dev/backend/main-db-name" \
+            --region "$AWS_REGION" \
+            --query "Parameter.Value" \
+            --output text)
+
+          SAMPLE_DB_NAME=$(aws ssm get-parameter \
+            --name "/aims/dev/backend/sample-db-name" \
+            --region "$AWS_REGION" \
+            --query "Parameter.Value" \
+            --output text)
+
+          JWT_SECRET_KEY=$(aws ssm get-parameter \
+            --name "/aims/dev/backend/jwt-secret-key" \
+            --region "$AWS_REGION" \
+            --with-decryption \
+            --query "Parameter.Value" \
+            --output text)
+
+          for VALUE in \
+            "$RDS_SECRET_ARN" \
+            "$RDS_HOST" \
+            "$RDS_PORT" \
+            "$MAIN_DB_NAME" \
+            "$SAMPLE_DB_NAME" \
+            "$JWT_SECRET_KEY"; do
+
             if [ -z "$VALUE" ] || [ "$VALUE" = "None" ]; then
               echo "Required backend SSM parameter is empty"
               exit 1
@@ -111,19 +179,30 @@ jobs:
           echo "JWT_SECRET_KEY=$JWT_SECRET_KEY" >> "$GITHUB_ENV"
 
       - name: Create or update backend Kubernetes Secret
-        if: github.ref_name == 'dev'
         run: |
-          SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id "$RDS_SECRET_ARN" --region "$AWS_REGION" --query "SecretString" --output text)
+          set -euo pipefail
 
-          DB_USERNAME=$(echo "$SECRET_JSON" | jq -r '.username')
-          DB_PASSWORD=$(echo "$SECRET_JSON" | jq -r '.password')
+          SECRET_JSON=$(aws secretsmanager get-secret-value \
+            --secret-id "$RDS_SECRET_ARN" \
+            --region "$AWS_REGION" \
+            --query "SecretString" \
+            --output text)
 
-          if [ -z "$DB_USERNAME" ] || [ "$DB_USERNAME" = "null" ] || [ -z "$DB_PASSWORD" ] || [ "$DB_PASSWORD" = "null" ]; then
-            echo "RDS username or password is missing"
+          DB_USERNAME=$(echo "$SECRET_JSON" | jq -r ".username")
+          DB_PASSWORD=$(echo "$SECRET_JSON" | jq -r ".password")
+
+          if [ -z "$DB_USERNAME" ] || [ "$DB_USERNAME" = "null" ]; then
+            echo "RDS username is missing"
+            exit 1
+          fi
+
+          if [ -z "$DB_PASSWORD" ] || [ "$DB_PASSWORD" = "null" ]; then
+            echo "RDS password is missing"
             exit 1
           fi
 
           MAIN_DB_JDBC_URL="jdbc:mysql://$RDS_HOST:$RDS_PORT/$MAIN_DB_NAME?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8"
+
           SAMPLE_DB_JDBC_URL="jdbc:mysql://$RDS_HOST:$RDS_PORT/$SAMPLE_DB_NAME?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8"
 
           echo "::add-mask::$DB_USERNAME"
@@ -131,17 +210,81 @@ jobs:
           echo "::add-mask::$MAIN_DB_JDBC_URL"
           echo "::add-mask::$SAMPLE_DB_JDBC_URL"
 
-          kubectl create secret generic backend-rds-secret -n "$NAMESPACE" --from-literal=MAIN_DB_JDBC_URL="$MAIN_DB_JDBC_URL" --from-literal=MAIN_DB_USERNAME="$DB_USERNAME" --from-literal=MAIN_DB_PASSWORD="$DB_PASSWORD" --from-literal=SAMPLE_DB_JDBC_URL="$SAMPLE_DB_JDBC_URL" --from-literal=SAMPLE_DB_USERNAME="$DB_USERNAME" --from-literal=SAMPLE_DB_PASSWORD="$DB_PASSWORD" --from-literal=JWT_SECRET_KEY="$JWT_SECRET_KEY" --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create secret generic backend-rds-secret \
+            --namespace "$NAMESPACE" \
+            --from-literal=MAIN_DB_JDBC_URL="$MAIN_DB_JDBC_URL" \
+            --from-literal=MAIN_DB_USERNAME="$DB_USERNAME" \
+            --from-literal=MAIN_DB_PASSWORD="$DB_PASSWORD" \
+            --from-literal=SAMPLE_DB_JDBC_URL="$SAMPLE_DB_JDBC_URL" \
+            --from-literal=SAMPLE_DB_USERNAME="$DB_USERNAME" \
+            --from-literal=SAMPLE_DB_PASSWORD="$DB_PASSWORD" \
+            --from-literal=JWT_SECRET_KEY="$JWT_SECRET_KEY" \
+            --dry-run=client \
+            -o yaml |
+          kubectl apply -f -
 
       - name: Update backend image in GitOps repository
         env:
           IMAGE_URI: ${{ steps.build-image.outputs.image_uri }}
         run: |
+          set -euo pipefail
+
           MANIFEST="infra/${INFRA_MANIFEST_PATH}"
 
-          test -f "$MANIFEST"
-          sed -i -E "s|^([[:space:]]*)image:.*$|\1image: ${IMAGE_URI}|" "$MANIFEST"
-          grep -n "image:" "$MANIFEST"
+          if [ ! -f "$MANIFEST" ]; then
+            echo "Manifest file not found: $MANIFEST"
+            exit 1
+          fi
+
+          IMAGE_TAG="${IMAGE_URI##*:}"
+          IMAGE_NAME="${IMAGE_URI%:*}"
+          TEMP_FILE="${MANIFEST}.tmp"
+
+          echo "Manifest: $MANIFEST"
+          echo "Image name: $IMAGE_NAME"
+          echo "Image tag: $IMAGE_TAG"
+
+          awk \
+            -v image_name="$IMAGE_NAME" \
+            -v image_tag="$IMAGE_TAG" \
+            '
+            BEGIN {
+              in_target = 0
+              updated = 0
+            }
+
+            {
+              if ($1 == "-" && $2 == "name:") {
+                in_target = ($3 == image_name)
+              }
+
+              if (in_target && $1 == "newTag:") {
+                match($0, /^[[:space:]]*/)
+                indent = substr($0, 1, RLENGTH)
+
+                print indent "newTag: " image_tag
+
+                updated = 1
+                in_target = 0
+                next
+              }
+
+              print
+            }
+
+            END {
+              if (!updated) {
+                print "Backend image block or newTag was not found" > "/dev/stderr"
+                exit 42
+              }
+            }
+            ' \
+            "$MANIFEST" > "$TEMP_FILE"
+
+          mv "$TEMP_FILE" "$MANIFEST"
+
+          echo "Updated backend image:"
+          grep -n -A 2 -B 1 "$IMAGE_NAME" "$MANIFEST"
 
           cd infra
 
@@ -155,12 +298,18 @@ jobs:
             exit 0
           fi
 
-          git commit -m "chore(backend): deploy ${GITHUB_REF_NAME}-${GITHUB_SHA::12}"
+          git diff --cached
+
+          git commit \
+            -m "chore(backend): deploy ${GITHUB_REF_NAME}-${GITHUB_SHA::12}"
 
           for ATTEMPT in 1 2 3; do
-            git pull --rebase origin "$GITHUB_REF_NAME"
+            echo "GitOps push attempt: $ATTEMPT"
 
-            if git push origin "HEAD:$GITHUB_REF_NAME"; then
+            git pull --rebase origin "$INFRA_BRANCH"
+
+            if git push origin "HEAD:$INFRA_BRANCH"; then
+              echo "GitOps image update pushed successfully"
               exit 0
             fi
 
