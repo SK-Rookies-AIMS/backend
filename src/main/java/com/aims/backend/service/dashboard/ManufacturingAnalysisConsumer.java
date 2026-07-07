@@ -8,16 +8,17 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
-import java.util.Optional;
-
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class ManufacturingAnalysisConsumer {
 
+    private static final String PROCESS_RISK_ANALYSIS =
+            "PROCESS_RISK_ANALYSIS";
+
     private final ObjectMapper objectMapper;
     private final AgvSimulationService agvSimulationService;
-    private final AgvAnalysisAggregationService aggregationService;
+    private final AnalysisDuplicateService duplicateService;
 
     @KafkaListener(
             topics = "factory.manufacturing.analysis",
@@ -33,26 +34,55 @@ public class ManufacturingAnalysisConsumer {
                             ManufacturingAnalysisEvent.class
                     );
 
-            Optional<Boolean> result =
-                    aggregationService.collect(event);
+            log.info(
+                    "[ANALYSIS] eventId={}, type={}, abnormal={}, raw={}",
+                    event.eventId(),
+                    event.analysisType(),
+                    event.analysisResult().isAbnormal(),
+                    message
+            );
 
-            // 아직 3개가 안 모임
-            if (result.isEmpty()) {
+            // Process Risk Analysis만 처리
+            if (!PROCESS_RISK_ANALYSIS.equals(event.analysisType())) {
+
+                log.debug(
+                        "[ANALYSIS IGNORE] eventId={}, type={}",
+                        event.eventId(),
+                        event.analysisType()
+                );
+
                 return;
             }
 
-            // 하나라도 abnormal
-            if (result.get()) {
+            // 동일 eventId 중복 처리 방지
+            if (!duplicateService.isFirstProcess(event.eventId())) {
 
-                log.info(
-                        "[AGV SKIP] eventId={}",
+                log.debug(
+                        "[ANALYSIS DUPLICATE] eventId={}",
                         event.eventId()
                 );
 
                 return;
             }
 
-            // 모두 정상
+            // 위험 공정이면 AGV 출발하지 않음
+            if (event.analysisResult().isAbnormal()) {
+
+                log.info(
+                        "[AGV SKIP] eventId={}, process={}",
+                        event.eventId(),
+                        event.processCode()
+                );
+
+                return;
+            }
+
+            log.info(
+                    "[AGV DISPATCH] eventId={}, process={}",
+                    event.eventId(),
+                    event.processCode()
+            );
+
             agvSimulationService.dispatchAgv(
                     event.eventId(),
                     event.carMasterId(),
