@@ -1,4 +1,10 @@
 package com.aims.backend.dto.dashboard;
 
-public class DispatchRequest {
+import com.aims.backend.domain.dashboard.enums.ProcessCode;
+
+public record DispatchRequest(
+        String eventId,
+        Long carMasterId,
+        ProcessCode processCode
+) {
 }
