@@ -79,10 +79,8 @@ public class DashboardService {
                 .mapToDouble(equipment -> {
                     switch (equipment.getCurrentStatus()) {
                         case RUNNING: return 5.0;
-                        case IDLE: return 4.0;
-                        case MAINTENANCE: return 3.0;
+                        case WARNING: return 4.0;
                         case STOPPED: return 0.0;
-                        case FAULT: return 0.0;
                         default: return 0.0;
                     }
                 }).sum();
