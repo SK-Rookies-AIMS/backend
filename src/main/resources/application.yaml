@@ -81,6 +81,7 @@ app:
     group-id: ${KAFKA_GROUP_ID:main-dev}
     auto-offset-reset: ${KAFKA_AUTO_OFFSET_RESET:earliest}
     listeners-enabled: ${KAFKA_LISTENERS_ENABLED:true}
+    analysis-topic: factory.manufacturing.analysis
 
     security-protocol: SASL_SSL
     sasl-mechanism: AWS_MSK_IAM
@@ -95,3 +96,6 @@ jwt:
   expiration:
     access: ${JWT_ACCESS_EXPIRATION:3600000}
     refresh: ${JWT_REFRESH_EXPIRATION:1209600000}
+
+external:
+  assembly-url: ${ASSEMBLY_SERVICE_URL:http://localhost:8082}

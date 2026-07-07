@@ -1,17 +1,37 @@
 package com.aims.backend.dto.dashboard;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
 import java.time.LocalDateTime;
 
-public record AgvOperationResponse(
-        Long id,
-        Long carMasterId,
-        String agvStatus,
-        String currentProcess,
-        String targetProcess,
-        Double progressRate,
-        Integer delaySeconds,
-        String routeCode,
-        Integer laneNo,
-        LocalDateTime updatedAt
-) {
+@Getter
+@AllArgsConstructor
+public class AgvOperationResponse {
+
+    private Long agvId;
+
+    private String eventId;
+
+    private Long carMasterId;
+
+    private String agvStatus;
+
+    private String currentProcess;
+
+    private String targetProcess;
+
+    private Double progressRate;
+
+    private Integer delaySeconds;
+
+    private LocalDateTime startedAt;
+
+    private LocalDateTime expectedArrivalTime;
+
+    private String routeCode;
+
+    private Integer laneNo;
+
+    private LocalDateTime updatedAt;
 }

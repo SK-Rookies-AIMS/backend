@@ -148,9 +148,8 @@ public class DashboardService {
                 agvOperationRepository.count();
 
         long movingCount =
-                agvOperationRepository.countByAgvStatus(
-                        AgvStatus.MOVING
-                );
+                agvOperationRepository.countByAgvStatus(AgvStatus.MOVING)
+                        + agvOperationRepository.countByAgvStatus(AgvStatus.UNLOADING);
 
         long waitingCount =
                 agvOperationRepository.countByAgvStatus(
@@ -207,8 +206,11 @@ public class DashboardService {
                         agv.getId()
                 );
 
+        realtimeState.calculateProgress(LocalDateTime.now());
+
         return new AgvOperationResponse(
                 agv.getId(),
+                realtimeState.getEventId(),
                 agv.getCarMasterId(),
                 agv.getAgvStatus().name(),
 
@@ -217,6 +219,9 @@ public class DashboardService {
 
                 realtimeState.getProgressRate(),
                 realtimeState.getDelaySeconds(),
+
+                realtimeState.getStartedAt(),
+                realtimeState.getExpectedArrivalTime(),
 
                 agv.getRouteCode(),
                 agv.getLaneNo(),

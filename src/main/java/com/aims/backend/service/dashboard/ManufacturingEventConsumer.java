@@ -18,7 +18,7 @@ public class ManufacturingEventConsumer {
     private final ObjectMapper objectMapper;
     private final AgvSimulationService agvSimulationService;
 
-    @KafkaListener(
+    /*@KafkaListener(
             topics = "factory.manufacturing.raw",
             groupId = "main-agv-group"
     )

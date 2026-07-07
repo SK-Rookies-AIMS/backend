@@ -1,5 +1,6 @@
 package com.aims.backend.service.dashboard;
 
+import com.aims.backend.client.AssemblyArrivalClient;
 import com.aims.backend.domain.dashboard.AgvOperation;
 import com.aims.backend.domain.dashboard.enums.AgvStatus;
 import com.aims.backend.domain.dashboard.enums.ProcessCode;
@@ -7,14 +8,18 @@ import com.aims.backend.dto.dashboard.AgvOperationResponse;
 import com.aims.backend.dto.dashboard.AgvRealtimeState;
 import com.aims.backend.dto.dashboard.ManufacturingEventRequest;
 import com.aims.backend.repository.dashboard.AgvOperationRepository;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.hc.client5.http.RouteInfo;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.*;
 
 @Slf4j
 @Service
@@ -24,51 +29,46 @@ public class AgvSimulationService {
     private final AgvOperationRepository agvOperationRepository;
     private final AgvRealtimeRedisService agvRealtimeRedisService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final TransactionTemplate transactionTemplate;
+    private final AssemblyArrivalClient assemblyArrivalClient;
 
-    private static final double PROGRESS_STEP = 5.0;
+    private final ScheduledExecutorService executorService =
+            Executors.newScheduledThreadPool(10);
+
+    private final Map<Long, ScheduledFuture<?>> scheduledTasks =
+            new ConcurrentHashMap<>();
+
+    private static final int MOVE_DURATION_SECONDS = 30;
+    private static final int UNLOADING_DURATION_SECONDS = 5;
+    private static final int RETURN_DURATION_SECONDS = 30;
 
     private static final Map<ProcessCode, RouteInfo> ROUTES = Map.of(
             ProcessCode.PRESS,
-            new RouteInfo(
-                    ProcessCode.PRESS,
-                    ProcessCode.BODY,
-                    "PRESS_BODY"
-            ),
+            new RouteInfo(ProcessCode.PRESS, ProcessCode.BODY, "PRESS_BODY"),
 
             ProcessCode.BODY,
-            new RouteInfo(
-                    ProcessCode.BODY,
-                    ProcessCode.PAINT,
-                    "BODY_PAINT"
-            ),
+            new RouteInfo(ProcessCode.BODY, ProcessCode.PAINT, "BODY_PAINT"),
 
             ProcessCode.PAINT,
-            new RouteInfo(
-                    ProcessCode.PAINT,
-                    ProcessCode.ASSEMBLY,
-                    "PAINT_ASSEMBLY"
-            ),
+            new RouteInfo(ProcessCode.PAINT, ProcessCode.ASSEMBLY, "PAINT_ASSEMBLY"),
 
             ProcessCode.ASSEMBLY,
-            new RouteInfo(
-                    ProcessCode.ASSEMBLY,
-                    ProcessCode.INSPECTION,
-                    "ASSEMBLY_INSPECTION"
-            )
+            new RouteInfo(ProcessCode.ASSEMBLY, ProcessCode.INSPECTION, "ASSEMBLY_INSPECTION")
     );
 
-    @Transactional
-    public void handleManufacturingEvent(ManufacturingEventRequest request) {
-        ProcessCode currentProcess = ProcessCode.valueOf(request.getProcessCode());
+    /*public void handleManufacturingEvent(ManufacturingEventRequest request) {
+        ProcessCode currentProcess =
+                ProcessCode.valueOf(request.getProcessCode());
 
         dispatchAgv(
+                request.getEventId(),
                 request.getCarMasterId(),
                 currentProcess
         );
-    }
+    }*/
 
-    @Transactional
     public void dispatchAgv(
+            String eventId,
             Long carMasterId,
             ProcessCode currentProcess
     ) {
@@ -76,137 +76,291 @@ public class AgvSimulationService {
 
         if (routeInfo == null) {
             log.info(
-                    "[AGV DISPATCH SKIP] 운반 대상 공정 아님. process={}",
+                    "[AGV DISPATCH SKIP] 운반 대상 공정 아님. eventId={}, process={}",
+                    eventId,
                     currentProcess
             );
             return;
         }
 
-        AgvOperation agv = agvOperationRepository
-                .findFirstByRouteCodeAndAgvStatusOrderByLaneNoAsc(
-                        routeInfo.routeCode(),
-                        AgvStatus.WAITING
-                )
-                .orElseThrow(() -> new IllegalStateException(
-                        "대기 중인 AGV가 없습니다. routeCode=" + routeInfo.routeCode()
-                ));
+        AgvOperation agv = transactionTemplate.execute(status -> {
+            AgvOperation selectedAgv =
+                    agvOperationRepository
+                            .findFirstByRouteCodeAndAgvStatusOrderByLaneNoAsc(
+                                    routeInfo.routeCode(),
+                                    AgvStatus.WAITING
+                            )
+                            .orElseThrow(() -> new IllegalStateException(
+                                    "대기 중인 AGV가 없습니다. routeCode=" + routeInfo.routeCode()
+                            ));
 
-        agv.dispatch(
-                carMasterId,
-                routeInfo.from(),
-                routeInfo.to(),
-                routeInfo.routeCode()
-        );
+            selectedAgv.dispatch(
+                    eventId,
+                    carMasterId,
+                    routeInfo.from(),
+                    routeInfo.to(),
+                    routeInfo.routeCode()
+            );
 
-        agvRealtimeRedisService.reset(agv.getId());
+            return agvOperationRepository.save(selectedAgv);
+        });
 
-        agvOperationRepository.save(agv);
-
-        log.info(
-                "[AGV DISPATCH] agvId={}, carMasterId={}, {} -> {}, routeCode={}",
-                agv.getId(),
-                carMasterId,
-                routeInfo.from(),
-                routeInfo.to(),
-                routeInfo.routeCode()
-        );
-
-        sendAgvStatus();
-    }
-
-    @Transactional
-    public void updateAgvProgress() {
-        List<AgvOperation> activeAgvs =
-                agvOperationRepository.findByAgvStatusIn(
-                        List.of(
-                                AgvStatus.MOVING,
-                                AgvStatus.RETURNING
-                        )
-                );
-
-        for (AgvOperation agv : activeAgvs) {
-            AgvRealtimeState state =
-                    agvRealtimeRedisService.get(agv.getId());
-
-            state.increaseProgress(PROGRESS_STEP);
-
-            if (!state.isArrived()) {
-                agvRealtimeRedisService.save(state);
-
-                log.debug(
-                        "[AGV PROGRESS] agvId={}, status={}, progress={}",
-                        agv.getId(),
-                        agv.getAgvStatus(),
-                        state.getProgressRate()
-                );
-
-                continue;
-            }
-
-            if (agv.getAgvStatus() == AgvStatus.MOVING) {
-                handleMovingArrived(agv);
-            } else if (agv.getAgvStatus() == AgvStatus.RETURNING) {
-                handleReturningArrived(agv);
-            }
+        if (agv == null) {
+            throw new IllegalStateException("AGV 출발 처리 실패");
         }
 
-        sendAgvStatus();
-    }
-
-    private void handleMovingArrived(AgvOperation agv) {
-        ProcessCode arrivedProcess = agv.getTargetProcess();
-        ProcessCode homeProcess = agv.getCurrentProcess();
-
-        agv.changeToReturning();
-
-        agvRealtimeRedisService.reset(agv.getId());
-
-        log.info(
-                "[AGV ARRIVED] agvId={}, arrived={}, returningTo={}",
+        startMovingSession(
                 agv.getId(),
-                arrivedProcess,
-                homeProcess
+                eventId,
+                carMasterId,
+                routeInfo
         );
     }
 
-    private void handleReturningArrived(AgvOperation agv) {
-        ProcessCode homeProcess = agv.getTargetProcess();
+    private void startMovingSession(
+            Long agvId,
+            String eventId,
+            Long carMasterId,
+            RouteInfo routeInfo
+    ) {
+        cancelScheduledTask(agvId);
 
-        RouteInfo routeInfo = ROUTES.get(homeProcess);
+        LocalDateTime startedAt = LocalDateTime.now();
+        LocalDateTime expectedArrivalTime =
+                startedAt.plusSeconds(MOVE_DURATION_SECONDS);
 
-        if (routeInfo == null) {
+        AgvRealtimeState state =
+                AgvRealtimeState.builder()
+                        .agvId(agvId)
+                        .eventId(eventId)
+                        .carMasterId(carMasterId)
+                        .status(AgvStatus.MOVING.name())
+                        .currentProcess(routeInfo.from().name())
+                        .targetProcess(routeInfo.to().name())
+                        .progressRate(0.0)
+                        .delaySeconds(0)
+                        .startedAt(startedAt)
+                        .expectedArrivalTime(expectedArrivalTime)
+                        .build();
+
+        agvRealtimeRedisService.save(state);
+
+        log.info(
+                "[AGV MOVING START] agvId={}, eventId={}, carMasterId={}, {} -> {}, expectedArrival={}",
+                agvId,
+                eventId,
+                carMasterId,
+                routeInfo.from(),
+                routeInfo.to(),
+                expectedArrivalTime
+        );
+
+        sendAgvStatus();
+
+        ScheduledFuture<?> task =
+                executorService.schedule(
+                        () -> handleMovingArrived(
+                                agvId,
+                                eventId,
+                                carMasterId,
+                                routeInfo
+                        ),
+                        MOVE_DURATION_SECONDS,
+                        TimeUnit.SECONDS
+                );
+
+        scheduledTasks.put(agvId, task);
+    }
+
+    private void handleMovingArrived(
+            Long agvId,
+            String eventId,
+            Long carMasterId,
+            RouteInfo routeInfo
+    ) {
+        scheduledTasks.remove(agvId);
+
+        transactionTemplate.executeWithoutResult(status -> {
+            AgvOperation agv =
+                    agvOperationRepository.findById(agvId)
+                            .orElseThrow(() -> new IllegalStateException(
+                                    "AGV를 찾을 수 없습니다. agvId=" + agvId
+                            ));
+
+            agv.changeToUnloading();
+            agvOperationRepository.save(agv);
+        });
+
+        log.info(
+                "[AGV ARRIVED / UNLOADING START] agvId={}, eventId={}, carMasterId={}, arrivedProcess={}",
+                agvId,
+                eventId,
+                carMasterId,
+                routeInfo.to()
+        );
+
+        try {
+            assemblyArrivalClient.notifyAgvArrived(eventId);
+        } catch (Exception e) {
+            log.warn(
+                    "[ASSEMBLY ARRIVAL FAILED] AGV 흐름은 계속 진행합니다. eventId={}",
+                    eventId,
+                    e
+            );
+        }
+
+        startUnloadingSession(
+                agvId,
+                eventId,
+                carMasterId,
+                routeInfo
+        );
+    }
+
+    private void startUnloadingSession(
+            Long agvId,
+            String eventId,
+            Long carMasterId,
+            RouteInfo routeInfo
+    ) {
+        cancelScheduledTask(agvId);
+
+        LocalDateTime startedAt = LocalDateTime.now();
+        LocalDateTime expectedEndTime =
+                startedAt.plusSeconds(UNLOADING_DURATION_SECONDS);
+
+        AgvRealtimeState state =
+                AgvRealtimeState.builder()
+                        .agvId(agvId)
+                        .eventId(eventId)
+                        .carMasterId(carMasterId)
+                        .status(AgvStatus.UNLOADING.name())
+                        .currentProcess(routeInfo.to().name())
+                        .targetProcess(routeInfo.to().name())
+                        .progressRate(100.0)
+                        .delaySeconds(0)
+                        .startedAt(startedAt)
+                        .expectedArrivalTime(expectedEndTime)
+                        .build();
+
+        agvRealtimeRedisService.save(state);
+
+        log.info(
+                "[AGV UNLOADING] agvId={}, eventId={}, duration={}s, expectedEnd={}",
+                agvId,
+                eventId,
+                UNLOADING_DURATION_SECONDS,
+                expectedEndTime
+        );
+
+        sendAgvStatus();
+
+        ScheduledFuture<?> task =
+                executorService.schedule(
+                        () -> startReturningSession(
+                                agvId,
+                                routeInfo
+                        ),
+                        UNLOADING_DURATION_SECONDS,
+                        TimeUnit.SECONDS
+                );
+
+        scheduledTasks.put(agvId, task);
+    }
+
+    private void startReturningSession(
+            Long agvId,
+            RouteInfo routeInfo
+    ) {
+        cancelScheduledTask(agvId);
+
+        transactionTemplate.executeWithoutResult(status -> {
+            AgvOperation agv =
+                    agvOperationRepository.findById(agvId)
+                            .orElseThrow(() -> new IllegalStateException(
+                                    "AGV를 찾을 수 없습니다. agvId=" + agvId
+                            ));
+
+            agv.changeToReturning();
+            agvOperationRepository.save(agv);
+        });
+
+        LocalDateTime startedAt = LocalDateTime.now();
+        LocalDateTime expectedArrivalTime =
+                startedAt.plusSeconds(RETURN_DURATION_SECONDS);
+
+        AgvRealtimeState state =
+                AgvRealtimeState.builder()
+                        .agvId(agvId)
+                        .eventId(null)
+                        .carMasterId(null)
+                        .status(AgvStatus.RETURNING.name())
+                        .currentProcess(routeInfo.to().name())
+                        .targetProcess(routeInfo.from().name())
+                        .progressRate(0.0)
+                        .delaySeconds(0)
+                        .startedAt(startedAt)
+                        .expectedArrivalTime(expectedArrivalTime)
+                        .build();
+
+        agvRealtimeRedisService.save(state);
+
+        log.info(
+                "[AGV RETURNING START] agvId={}, {} -> {}, expectedArrival={}",
+                agvId,
+                routeInfo.to(),
+                routeInfo.from(),
+                expectedArrivalTime
+        );
+
+        sendAgvStatus();
+
+        ScheduledFuture<?> task =
+                executorService.schedule(
+                        () -> handleReturningArrived(
+                                agvId,
+                                routeInfo
+                        ),
+                        RETURN_DURATION_SECONDS,
+                        TimeUnit.SECONDS
+                );
+
+        scheduledTasks.put(agvId, task);
+    }
+
+    private void handleReturningArrived(
+            Long agvId,
+            RouteInfo routeInfo
+    ) {
+        scheduledTasks.remove(agvId);
+
+        transactionTemplate.executeWithoutResult(status -> {
+            AgvOperation agv =
+                    agvOperationRepository.findById(agvId)
+                            .orElseThrow(() -> new IllegalStateException(
+                                    "AGV를 찾을 수 없습니다. agvId=" + agvId
+                            ));
+
             agv.changeToWaiting(
-                    homeProcess,
-                    homeProcess,
-                    null
+                    routeInfo.from(),
+                    routeInfo.to(),
+                    routeInfo.routeCode()
             );
 
-            agvRealtimeRedisService.reset(agv.getId());
+            agvOperationRepository.save(agv);
+        });
 
-            log.info(
-                    "[AGV WAITING] agvId={}, home={}",
-                    agv.getId(),
-                    homeProcess
-            );
-
-            return;
-        }
-
-        agv.changeToWaiting(
-                routeInfo.from(),
-                routeInfo.to(),
-                routeInfo.routeCode()
-        );
-
-        agvRealtimeRedisService.reset(agv.getId());
+        agvRealtimeRedisService.delete(agvId);
 
         log.info(
                 "[AGV RETURN COMPLETE] agvId={}, waitingAt={}, nextTarget={}, routeCode={}",
-                agv.getId(),
+                agvId,
                 routeInfo.from(),
                 routeInfo.to(),
                 routeInfo.routeCode()
         );
+
+        sendAgvStatus();
     }
 
     private void sendAgvStatus() {
@@ -226,18 +380,37 @@ public class AgvSimulationService {
         AgvRealtimeState state =
                 agvRealtimeRedisService.get(agv.getId());
 
+        state.calculateProgress(LocalDateTime.now());
+
         return new AgvOperationResponse(
                 agv.getId(),
+                state.getEventId(),
                 agv.getCarMasterId(),
                 agv.getAgvStatus().name(),
                 agv.getCurrentProcess().name(),
                 agv.getTargetProcess().name(),
                 state.getProgressRate(),
                 state.getDelaySeconds(),
+                state.getStartedAt(),
+                state.getExpectedArrivalTime(),
                 agv.getRouteCode(),
                 agv.getLaneNo(),
                 agv.getUpdatedAt()
         );
+    }
+
+    private void cancelScheduledTask(Long agvId) {
+        ScheduledFuture<?> task =
+                scheduledTasks.remove(agvId);
+
+        if (task != null && !task.isDone()) {
+            task.cancel(false);
+        }
+    }
+
+    @PreDestroy
+    public void shutdown() {
+        executorService.shutdownNow();
     }
 
     private record RouteInfo(
