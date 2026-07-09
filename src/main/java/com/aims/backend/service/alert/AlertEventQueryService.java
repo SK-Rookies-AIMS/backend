@@ -94,11 +94,8 @@ public class AlertEventQueryService {
                             "Equipment not found. id=" + alertEvent.getEquipmentId()
                     ));
 
-            //테스트용 로그
-            System.out.println("Updating equipment status to RUNNING for equipment ID: " + equipment.getId());
             equipment.setCurrentStatus(OperationStatus.RUNNING);
             equipmentRepository.save(equipment);
-            System.out.println("Equipment status updated to RUNNING for equipment currensStatus: " + equipment.getCurrentStatus());
         }
 
         return AlertEventResponse.from(alertEvent);
