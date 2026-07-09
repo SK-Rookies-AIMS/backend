@@ -2,11 +2,15 @@ package com.aims.backend.service.alert;
 
 import com.aims.backend.common.status.ErrorStatus;
 import com.aims.backend.domain.alert.AlertEvent;
+import com.aims.backend.domain.dashboard.Equipment;
+import com.aims.backend.domain.dashboard.enums.OperationStatus;
 import com.aims.backend.dto.alert.AlertActionUpdateRequest;
 import com.aims.backend.dto.alert.AlertEventResponse;
 import com.aims.backend.dto.alert.AlertSearchRequest;
 import com.aims.backend.exception.GeneralException;
 import com.aims.backend.repository.alert.AlertEventRepository;
+import com.aims.backend.repository.sample.EquipmentRepository;
+
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
@@ -38,6 +42,7 @@ public class AlertEventQueryService {
             );
 
     private final AlertEventRepository alertEventRepository;
+    private final EquipmentRepository equipmentRepository;
 
     @Transactional(readOnly = true)
     public Page<AlertEventResponse> getAlerts(AlertSearchRequest request) {
@@ -74,14 +79,27 @@ public class AlertEventQueryService {
             AlertActionUpdateRequest request
     ) {
 
-        AlertEvent alertEvent =
-                getAlertEvent(logNo);
+        AlertEvent alertEvent = getAlertEvent(logNo);
 
         alertEvent.updateAction(
                 request.getActionBy(),
                 request.getActionStatus(),
                 request.getReason()
         );
+
+        if (alertEvent.getEquipmentId() != null) {
+            Equipment equipment = equipmentRepository.findById(alertEvent.getEquipmentId())
+                    .orElseThrow(() -> new GeneralException(
+                            ErrorStatus.NOT_FOUND,
+                            "Equipment not found. id=" + alertEvent.getEquipmentId()
+                    ));
+
+            //테스트용 로그
+            System.out.println("Updating equipment status to RUNNING for equipment ID: " + equipment.getId());
+            equipment.setCurrentStatus(OperationStatus.RUNNING);
+            equipmentRepository.save(equipment);
+            System.out.println("Equipment status updated to RUNNING for equipment currensStatus: " + equipment.getCurrentStatus());
+        }
 
         return AlertEventResponse.from(alertEvent);
     }
