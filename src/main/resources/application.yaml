@@ -19,8 +19,8 @@ spring:
         format_sql: true
   data:
     redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
+      host: aims-dev-redis.80mdpk.ng.0001.apn2.cache.amazonaws.com
+      port: 6379
       timeout: ${REDIS_TIMEOUT:3s}
   kafka:
     bootstrap-servers: ${MSK_BOOTSTRAP_SERVERS}
