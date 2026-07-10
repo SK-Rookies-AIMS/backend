@@ -4,7 +4,9 @@ import com.aims.backend.common.response.ApiResponse;
 import com.aims.backend.dto.alert.AlertActionUpdateRequest;
 import com.aims.backend.dto.alert.AlertEventResponse;
 import com.aims.backend.dto.alert.AlertSearchRequest;
+import com.aims.backend.dto.alert.ActionTimelineResponse;
 import com.aims.backend.service.alert.AlertEventQueryService;
+import com.aims.backend.service.alert.ActionTimelineQueryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -16,12 +18,15 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/event")
 @RequiredArgsConstructor
 public class AlertEventController {
 
     private final AlertEventQueryService alertEventQueryService;
+    private final ActionTimelineQueryService actionTimelineQueryService;
 
     @GetMapping
     public ApiResponse<Page<AlertEventResponse>> getAlerts(@ModelAttribute AlertSearchRequest request) {
@@ -44,5 +49,10 @@ public class AlertEventController {
             @Valid @RequestBody AlertActionUpdateRequest request
     ) {
         return ApiResponse.success(alertEventQueryService.updateAction(logNo, request));
+    }
+
+    @GetMapping("/{logNo}/action-timeline")
+    public ApiResponse<List<ActionTimelineResponse>> getActionTimeline(@PathVariable String logNo) {
+        return ApiResponse.success(actionTimelineQueryService.getTimeline(logNo));
     }
 }
