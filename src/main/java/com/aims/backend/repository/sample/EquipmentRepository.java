@@ -14,7 +14,7 @@ public interface EquipmentRepository extends JpaRepository<Equipment, Long> {
     @Query("SELECT e.currentStatus, COUNT(e) FROM Equipment e GROUP BY e.currentStatus")
     List<Object[]> countAllByCurrentStatus();
 
-    @Query("SELECT e.processCode, COUNT(e) FROM Equipment e WHERE e.currentStatus IN ('RUNNING', 'IDLE') GROUP BY e.processCode")
+    @Query("SELECT e.processCode, COUNT(e) FROM Equipment e WHERE e.currentStatus IN ('RUNNING', 'WARNING') GROUP BY e.processCode")
     List<Object[]> countActiveByProcessCode();
 
     @Query("SELECT e.processCode, COUNT(e) FROM Equipment e GROUP BY e.processCode")

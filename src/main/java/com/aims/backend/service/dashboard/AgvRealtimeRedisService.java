@@ -10,16 +10,16 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class AgvRealtimeRedisService {
 
-    private final RedisTemplate<String, Object> redisTemplate;
-    private final ObjectMapper objectMapper =
-            new ObjectMapper();
-
     private static final String KEY_PREFIX = "agv:realtime:";
+
+    private final RedisTemplate<String, Object> redisTemplate;
+    private final ObjectMapper objectMapper;
 
     /**
      * Redis 저장
      */
     public void save(AgvRealtimeState state) {
+
         redisTemplate.opsForValue().set(
                 makeKey(state.getAgvId()),
                 state
@@ -36,7 +36,7 @@ public class AgvRealtimeRedisService {
                         .get(makeKey(agvId));
 
         if (value == null) {
-            return defaultState(agvId);
+            return AgvRealtimeState.empty(agvId);
         }
 
         return objectMapper.convertValue(
@@ -46,36 +46,20 @@ public class AgvRealtimeRedisService {
     }
 
     /**
-     * 진행률 초기화
-     */
-    public void reset(Long agvId)
-    {
-        AgvRealtimeState state =
-                AgvRealtimeState.builder()
-                        .agvId(agvId)
-                        .progressRate(0.0)
-                        .delaySeconds(0)
-                        .build();
-
-        save(state);
-    }
-
-    /**
      * Redis 삭제
      */
     public void delete(Long agvId) {
-        redisTemplate.delete(makeKey(agvId));
+
+        redisTemplate.delete(
+                makeKey(agvId)
+        );
     }
 
+    /**
+     * Redis Key 생성
+     */
     private String makeKey(Long agvId) {
-        return KEY_PREFIX + agvId;
-    }
 
-    private AgvRealtimeState defaultState(Long agvId) {
-        return AgvRealtimeState.builder()
-                .agvId(agvId)
-                .progressRate(0.0)
-                .delaySeconds(0)
-                .build();
+        return KEY_PREFIX + agvId;
     }
 }
