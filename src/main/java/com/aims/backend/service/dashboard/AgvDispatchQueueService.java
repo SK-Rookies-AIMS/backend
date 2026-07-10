@@ -1,44 +1,53 @@
 package com.aims.backend.service.dashboard;
 
+import com.aims.backend.domain.dashboard.enums.ProcessCode;
 import com.aims.backend.dto.dashboard.DispatchRequest;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.Queue;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class AgvDispatchQueueService {
 
-    private final Map<String, Queue<DispatchRequest>> queues =
-            new ConcurrentHashMap<>();
+    private final AgvDispatchRedisService redisService;
 
-    private final Map<String, Set<String>> queuedEventIds =
-            new ConcurrentHashMap<>();
+    private static final List<String> ROUTE_CODES = List.of(
+            "PRESS_BODY",
+            "BODY_PAINT",
+            "PAINT_ASSEMBLY",
+            "ASSEMBLY_INSPECTION"
+    );
 
-    public synchronized boolean offer(
+    public boolean offer(DispatchRequest request) {
+        String routeCode = resolveRouteCode(request.processCode());
+
+        if (routeCode == null) {
+            log.info(
+                    "[AGV QUEUE SKIP] 운반 대상 공정 아님. eventId={}, process={}",
+                    request.eventId(),
+                    request.processCode()
+            );
+            return false;
+        }
+
+        return offer(routeCode, request);
+    }
+
+    public boolean offer(
             String routeCode,
             DispatchRequest request
     ) {
-        Queue<DispatchRequest> queue =
-                queues.computeIfAbsent(
-                        routeCode,
-                        key -> new ConcurrentLinkedQueue<>()
-                );
+        Boolean added = redisService.addEventId(
+                routeCode,
+                request.eventId()
+        );
 
-        Set<String> eventIds =
-                queuedEventIds.computeIfAbsent(
-                        routeCode,
-                        key -> ConcurrentHashMap.newKeySet()
-                );
-
-        if (!eventIds.add(request.eventId())) {
+        if (!Boolean.TRUE.equals(added)) {
             log.debug(
                     "[AGV QUEUE][{}] duplicated eventId={} ignored",
                     routeCode,
@@ -47,76 +56,84 @@ public class AgvDispatchQueueService {
             return false;
         }
 
-        queue.offer(request);
+        try {
+            redisService.pushLast(routeCode, request);
+        } catch (Exception e) {
+            redisService.removeEventId(routeCode, request.eventId());
+            throw e;
+        }
 
-        log.warn(
+        log.info(
                 "[AGV QUEUE][{}] queued eventId={}, process={}, queueSize={}, waitingEvents={}",
                 routeCode,
                 request.eventId(),
                 request.processCode(),
-                queue.size(),
+                size(routeCode),
                 getWaitingEventIds(routeCode)
         );
 
         return true;
     }
 
-    public synchronized Optional<DispatchRequest> poll(
-            String routeCode
+    public void requeueFirst(
+            String routeCode,
+            DispatchRequest request
     ) {
-        Queue<DispatchRequest> queue =
-                queues.get(routeCode);
+        redisService.pushFirst(routeCode, request);
 
-        if (queue == null || queue.isEmpty()) {
-            return Optional.empty();
-        }
-
-        DispatchRequest request =
-                queue.poll();
-
-        if (request == null) {
-            return Optional.empty();
-        }
-
-        Set<String> eventIds =
-                queuedEventIds.get(routeCode);
-
-        if (eventIds != null) {
-            eventIds.remove(request.eventId());
-        }
-
-        log.info(
-                "[AGV QUEUE][{}] dispatch eventId={}, process={}, remainQueue={}",
+        log.debug(
+                "[AGV QUEUE][{}] requeued eventId={}, process={}, queueSize={}",
                 routeCode,
                 request.eventId(),
                 request.processCode(),
-                getWaitingEventIds(routeCode)
+                size(routeCode)
         );
-
-        return Optional.of(request);
     }
 
-    public synchronized List<String> getWaitingEventIds(
-            String routeCode
-    ) {
-        Queue<DispatchRequest> queue =
-                queues.get(routeCode);
+    public Optional<DispatchRequest> poll(String routeCode) {
+        Optional<DispatchRequest> request = redisService.popFirst(routeCode);
 
-        if (queue == null) {
-            return List.of();
-        }
+        request.ifPresent(value -> {
+            redisService.removeEventId(routeCode, value.eventId());
 
-        return queue.stream()
+            log.info(
+                    "[AGV QUEUE][{}] poll eventId={}, process={}, remainQueue={}",
+                    routeCode,
+                    value.eventId(),
+                    value.processCode(),
+                    getWaitingEventIds(routeCode)
+            );
+        });
+
+        return request;
+    }
+
+    public List<String> getWaitingEventIds(String routeCode) {
+        return redisService.findAll(routeCode)
+                .stream()
                 .map(DispatchRequest::eventId)
                 .toList();
     }
 
-    public synchronized int size(
-            String routeCode
-    ) {
-        Queue<DispatchRequest> queue =
-                queues.get(routeCode);
+    public int size(String routeCode) {
+        return redisService.size(routeCode);
+    }
 
-        return queue == null ? 0 : queue.size();
+    public List<String> routeCodes() {
+        return ROUTE_CODES;
+    }
+
+    public String resolveRouteCode(ProcessCode processCode) {
+        if (processCode == null) {
+            return null;
+        }
+
+        return switch (processCode) {
+            case PRESS -> "PRESS_BODY";
+            case BODY -> "BODY_PAINT";
+            case PAINT -> "PAINT_ASSEMBLY";
+            case ASSEMBLY -> "ASSEMBLY_INSPECTION";
+            default -> null;
+        };
     }
 }

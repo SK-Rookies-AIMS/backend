@@ -1,6 +1,7 @@
 package com.aims.backend.service.dashboard;
 
 import com.aims.backend.domain.dashboard.enums.ProcessCode;
+import com.aims.backend.dto.dashboard.DispatchRequest;
 import com.aims.backend.dto.kafka.ManufacturingAnalysisEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +18,7 @@ public class ManufacturingAnalysisConsumer {
             "PROCESS_RISK_ANALYSIS";
 
     private final ObjectMapper objectMapper;
-    private final AgvSimulationService agvSimulationService;
+    private final AgvDispatchQueueService dispatchQueueService;
     private final AnalysisDuplicateService duplicateService;
 
     @KafkaListener(
@@ -77,16 +78,22 @@ public class ManufacturingAnalysisConsumer {
                 return;
             }
 
-            log.info(
-                    "[AGV DISPATCH] eventId={}, process={}",
-                    event.eventId(),
-                    event.processCode()
-            );
+            ProcessCode processCode =
+                    ProcessCode.valueOf(event.processCode());
 
-            agvSimulationService.dispatchAgv(
+            DispatchRequest request = new DispatchRequest(
                     event.eventId(),
                     event.carMasterId(),
-                    ProcessCode.valueOf(event.processCode())
+                    processCode
+            );
+
+            boolean queued = dispatchQueueService.offer(request);
+
+            log.info(
+                    "[AGV QUEUE REQUEST] eventId={}, process={}, queued={}",
+                    event.eventId(),
+                    processCode,
+                    queued
             );
 
         } catch (Exception e) {
