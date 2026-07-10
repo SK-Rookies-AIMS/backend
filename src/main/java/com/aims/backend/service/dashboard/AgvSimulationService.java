@@ -6,7 +6,6 @@ import com.aims.backend.domain.dashboard.enums.AgvStatus;
 import com.aims.backend.domain.dashboard.enums.ProcessCode;
 import com.aims.backend.dto.dashboard.AgvOperationResponse;
 import com.aims.backend.dto.dashboard.AgvRealtimeState;
-import com.aims.backend.dto.dashboard.DispatchRequest;
 import com.aims.backend.repository.dashboard.AgvOperationRepository;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
@@ -34,8 +33,6 @@ public class AgvSimulationService {
     private final SimpMessagingTemplate messagingTemplate;
     private final TransactionTemplate transactionTemplate;
     private final AssemblyArrivalClient assemblyArrivalClient;
-    private final AgvDispatchQueueService dispatchQueueService;
-    private final Object dispatchLock = new Object();
 
     private final ScheduledExecutorService executorService =
             Executors.newScheduledThreadPool(10);
@@ -61,79 +58,66 @@ public class AgvSimulationService {
             new RouteInfo(ProcessCode.ASSEMBLY, ProcessCode.INSPECTION, "ASSEMBLY_INSPECTION")
     );
 
-    public void dispatchAgv(
+    public boolean dispatchAgv(
             String eventId,
             Long carMasterId,
             ProcessCode currentProcess
     ) {
 
-        synchronized (dispatchLock) {
+        RouteInfo routeInfo = ROUTES.get(currentProcess);
 
-            RouteInfo routeInfo = ROUTES.get(currentProcess);
+        if (routeInfo == null) {
+            log.info(
+                    "[AGV DISPATCH SKIP] 운반 대상 공정 아님. eventId={}, process={}",
+                    eventId,
+                    currentProcess
+            );
+            return true;
+        }
 
-            if (routeInfo == null) {
-                log.info(
-                        "[AGV DISPATCH SKIP] 운반 대상 공정 아님. eventId={}, process={}",
-                        eventId,
-                        currentProcess
-                );
-                return;
-            }
+        AgvOperation agv = transactionTemplate.execute(status -> {
 
-            AgvOperation agv = transactionTemplate.execute(status -> {
-
-                AgvOperation selectedAgv =
-                        agvOperationRepository
-                                .findFirstByRouteCodeAndAgvStatusOrderByLaneNoAsc(
-                                        routeInfo.routeCode(),
-                                        AgvStatus.WAITING
-                                )
-                                .orElse(null);
-
-                if (selectedAgv == null) {
-
-                    dispatchQueueService.offer(
-                            routeInfo.routeCode(),
-                            new DispatchRequest(
-                                    eventId,
-                                    carMasterId,
-                                    currentProcess
+            AgvOperation selectedAgv =
+                    agvOperationRepository
+                            .findFirstWaitingAgvForUpdateSkipLocked(
+                                    routeInfo.routeCode(),
+                                    AgvStatus.WAITING.name()
                             )
-                    );
+                            .orElse(null);
 
-                    return null;
-                }
-
-                selectedAgv.dispatch(
-                        eventId,
-                        carMasterId,
-                        routeInfo.from(),
-                        routeInfo.to(),
-                        routeInfo.routeCode()
-                );
-
-                return agvOperationRepository.save(selectedAgv);
-            });
-
-            if (agv == null) {
-
-                log.info(
-                        "[AGV DISPATCH] queued eventId={}, process={}, routeCode={}",
-                        eventId,
-                        currentProcess,
-                        routeInfo.routeCode()
-                );
-
-                return;
+            if (selectedAgv == null) {
+                return null;
             }
 
-            startMovingSession(
-                    agv.getId(),
+            selectedAgv.dispatch(
                     eventId,
                     carMasterId,
-                    routeInfo
+                    routeInfo.from(),
+                    routeInfo.to(),
+                    routeInfo.routeCode()
             );
+
+            return agvOperationRepository.save(selectedAgv);
+        });
+
+        if (agv == null) {
+            log.info(
+                    "[AGV DISPATCH WAIT] 사용 가능한 AGV 없음. eventId={}, process={}, routeCode={}",
+                    eventId,
+                    currentProcess,
+                    routeInfo.routeCode()
+            );
+            return false;
         }
+
+        startMovingSession(
+                agv.getId(),
+                eventId,
+                carMasterId,
+                routeInfo
+        );
+
+        return true;
     }
 
     private void startMovingSession(
@@ -380,22 +364,6 @@ public class AgvSimulationService {
         );
 
         sendAgvStatus();
-
-        dispatchQueueService.poll(routeInfo.routeCode())
-                .ifPresent(request -> {
-                    log.info(
-                            "[AGV QUEUE] retry eventId={}, process={}, routeCode={}",
-                            request.eventId(),
-                            request.processCode(),
-                            routeInfo.routeCode()
-                    );
-
-                    dispatchAgv(
-                            request.eventId(),
-                            request.carMasterId(),
-                            request.processCode()
-                    );
-                });
     }
 
     private void sendAgvStatus() {
@@ -414,6 +382,8 @@ public class AgvSimulationService {
     private AgvOperationResponse toResponse(AgvOperation agv) {
         AgvRealtimeState state =
                 agvRealtimeRedisService.get(agv.getId());
+
+        state.calculateProgress(LocalDateTime.now());
 
         return new AgvOperationResponse(
                 agv.getId(),
