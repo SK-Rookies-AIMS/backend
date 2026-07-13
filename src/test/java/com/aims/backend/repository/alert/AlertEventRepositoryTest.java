@@ -68,4 +68,78 @@ class AlertEventRepositoryTest {
                     assertThat(saved.getScoreCalculatedAt()).isEqualTo(scoreCalculatedAt);
                 });
     }
+
+    @Test
+    void aggregatesScoresAndCompletedActionsWithinPeriod() {
+        LocalDateTime from = LocalDateTime.of(2026, 7, 6, 12, 0);
+        LocalDateTime to = LocalDateTime.of(2026, 7, 13, 12, 0);
+
+        alertEventRepository.save(summaryEvent(
+                "summary-1", from.plusDays(1), "100.00", "80.00", "0.5000", AlertActionStatus.COMPLETED
+        ));
+        alertEventRepository.save(summaryEvent(
+                "summary-2", from.plusDays(2), "200.00", null, "1.0000", AlertActionStatus.NOT_NEEDED
+        ));
+        alertEventRepository.save(summaryEvent(
+                "summary-3", from.minusSeconds(1), "999.00", "99.00", "0.9000", AlertActionStatus.COMPLETED
+        ));
+        alertEventRepository.save(summaryEvent(
+                "summary-4", from.plusDays(3), null, "40.00", null, AlertActionStatus.INCOMPLETE
+        ));
+        alertEventRepository.flush();
+        setCreatedAt("AL-summary-1", from.plusDays(1));
+        setCreatedAt("AL-summary-2", from.plusDays(2));
+        setCreatedAt("AL-summary-3", from.minusSeconds(1));
+        setCreatedAt("AL-summary-4", from.plusDays(3));
+        entityManager.clear();
+
+        AlertEventRepository.PrioritySummaryProjection summary =
+                alertEventRepository.findPrioritySummary(from, to, AlertActionStatus.COMPLETED);
+
+        assertThat(summary.getTotalCount()).isEqualTo(3);
+        assertThat(summary.getPriorityScoreSum()).isEqualByComparingTo(new BigDecimal("300.00"));
+        assertThat(summary.getPriorityScoreCount()).isEqualTo(2);
+        assertThat(summary.getRiskScoreSum()).isEqualByComparingTo(new BigDecimal("120.00"));
+        assertThat(summary.getRiskScoreCount()).isEqualTo(2);
+        assertThat(summary.getOccurrenceScoreSum()).isEqualByComparingTo(new BigDecimal("1.5000"));
+        assertThat(summary.getOccurrenceScoreCount()).isEqualTo(2);
+        assertThat(summary.getCompletedCount()).isEqualTo(1);
+    }
+
+    private AlertEvent summaryEvent(
+            String suffix,
+            LocalDateTime createdAt,
+            String priorityScore,
+            String riskScore,
+            String occurrenceScore,
+            AlertActionStatus actionStatus
+    ) {
+        return AlertEvent.builder()
+                .logNo("AL-" + suffix)
+                .eventId("event-" + suffix)
+                .alertType(AlertType.PROCESS)
+                .processCode(ProcessCode.PAINT)
+                .eventKey("PROCESS:PAINT:" + suffix)
+                .riskScore(decimal(riskScore))
+                .occurrenceScore(decimal(occurrenceScore))
+                .detectionScore(BigDecimal.ZERO)
+                .priorityScore(decimal(priorityScore))
+                .severity(AlertSeverity.CAUTION)
+                .title("summary test")
+                .contents("summary test")
+                .actionStatus(actionStatus)
+                .createdAt(createdAt)
+                .build();
+    }
+
+    private BigDecimal decimal(String value) {
+        return value == null ? null : new BigDecimal(value);
+    }
+
+    private void setCreatedAt(String logNo, LocalDateTime createdAt) {
+        entityManager.createNativeQuery("UPDATE alert_event SET created_at = :createdAt WHERE log_no = :logNo")
+                .setParameter("createdAt", createdAt)
+                .setParameter("logNo", logNo)
+                .executeUpdate();
+    }
 }
