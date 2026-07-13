@@ -131,6 +131,8 @@ public class AlertEventSaveService {
                 defaultContents(alertType, processCode, equipmentId, text(root, "contents", "message", "description"));
         String eventKey =
                 eventKey(root, alertType, processCode, equipmentId, title, eventId);
+        String imageUrl =
+                text(root, "imageUrl", "image_url");
         BigDecimal riskScore =
                 score(root, BigDecimal.ZERO, BigDecimal.valueOf(100), "riskScore", "risk_score");
         if (riskScore == null) {
@@ -173,6 +175,7 @@ public class AlertEventSaveService {
                 severity,
                 title,
                 contents,
+                imageUrl,
                 AlertActionStatus.INCOMPLETE,
                 scoreCalculatedAt
         );
@@ -241,6 +244,7 @@ public class AlertEventSaveService {
                 .severity(calculatedAlert.severity())
                 .title(truncate(calculatedAlert.title(), 100))
                 .contents(truncate(calculatedAlert.contents(), 500))
+                .imageUrl(truncate(calculatedAlert.imageUrl(), 500))
                 .actionStatus(calculatedAlert.actionStatus())
                 .scoreCalculatedAt(calculatedAlert.scoreCalculatedAt())
                 .build();
@@ -578,6 +582,7 @@ public class AlertEventSaveService {
             AlertSeverity severity,
             String title,
             String contents,
+            String imageUrl,
             AlertActionStatus actionStatus,
             LocalDateTime scoreCalculatedAt
     ) {
