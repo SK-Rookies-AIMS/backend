@@ -1,19 +1,25 @@
 package com.aims.backend.controller.alert;
 
 import com.aims.backend.common.response.ApiResponse;
+import com.aims.backend.config.jwt.TokenProvider;
 import com.aims.backend.dto.alert.AlertActionUpdateRequest;
 import com.aims.backend.dto.alert.AlertEventResponse;
 import com.aims.backend.dto.alert.AlertSearchRequest;
 import com.aims.backend.dto.alert.ActionTimelineResponse;
+import com.aims.backend.dto.alert.ActionTimelineCreateRequest;
 import com.aims.backend.service.alert.AlertEventQueryService;
-import com.aims.backend.service.alert.ActionTimelineQueryService;
+import com.aims.backend.service.alert.ActionTimelineService;
+import com.aims.backend.service.alert.ActionTimelineService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -26,7 +32,8 @@ import java.util.List;
 public class AlertEventController {
 
     private final AlertEventQueryService alertEventQueryService;
-    private final ActionTimelineQueryService actionTimelineQueryService;
+    private final ActionTimelineService actionTimelineService;
+    private final TokenProvider tokenProvider;
 
     @GetMapping
     public ApiResponse<Page<AlertEventResponse>> getAlerts(@ModelAttribute AlertSearchRequest request) {
@@ -53,6 +60,27 @@ public class AlertEventController {
 
     @GetMapping("/{logNo}/action-timeline")
     public ApiResponse<List<ActionTimelineResponse>> getActionTimeline(@PathVariable String logNo) {
-        return ApiResponse.success(actionTimelineQueryService.getTimeline(logNo));
+        return ApiResponse.success(actionTimelineService.getTimeline(logNo));
+    }
+
+    @PostMapping("/{logNo}/action-timeline")
+    public ApiResponse<ActionTimelineResponse> createActionTimeline(
+            @PathVariable String logNo,
+            @Valid @RequestBody ActionTimelineCreateRequest request,
+            HttpServletRequest httpServletRequest
+    ) {
+
+
+        String accessToken = TokenProvider.resolveToken(httpServletRequest);
+        if (accessToken == null) {
+            return ApiResponse.failure("Access token is missing or invalid.", null);
+        }
+
+        Authentication authentication = tokenProvider.getAuthentication(accessToken);
+        if (authentication == null || !(authentication.getPrincipal() instanceof TokenProvider.JwtPrincipal principal)) {
+            return ApiResponse.failure("Invalid authentication principal.", null);
+        }
+
+        return ApiResponse.success(actionTimelineService.createTimeline(logNo, request, principal));
     }
 }

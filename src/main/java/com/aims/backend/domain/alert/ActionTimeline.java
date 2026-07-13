@@ -4,6 +4,8 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Table;
 import jakarta.persistence.Id;
 import lombok.AccessLevel;
@@ -27,8 +29,9 @@ import com.aims.backend.domain.alert.ActionCategory;
 public class ActionTimeline {
     
     @Id
-    @Column(name = "action_id", nullable = false, length = 20)
-    private String actionId;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "action_id")
+    private Long actionId;
 
     @Column(name = "log_no", nullable = false, length = 20)
     private String logNo;
