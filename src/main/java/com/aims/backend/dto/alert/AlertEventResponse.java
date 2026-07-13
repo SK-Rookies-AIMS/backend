@@ -30,6 +30,7 @@ public class AlertEventResponse {
     private String actionStatus;
     private String reason;
     private LocalDateTime scoreCalculatedAt;
+    private String imageUrl;
     private LocalDateTime createdAt;
     private LocalDateTime resolvedAt;
 
@@ -52,6 +53,7 @@ public class AlertEventResponse {
                 .actionStatus(alertEvent.getActionStatus() == null ? null : alertEvent.getActionStatus().name())
                 .reason(alertEvent.getReason())
                 .scoreCalculatedAt(alertEvent.getScoreCalculatedAt())
+                .imageUrl(alertEvent.getImageUrl())
                 .createdAt(alertEvent.getCreatedAt())
                 .resolvedAt(alertEvent.getResolvedAt())
                 .build();
