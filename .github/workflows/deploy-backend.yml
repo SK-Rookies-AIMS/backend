@@ -154,13 +154,27 @@ jobs:
             --query "Parameter.Value" \
             --output text)
 
+          REDIS_HOST=$(aws ssm get-parameter \
+            --name "/aims/dev/redis/host" \
+            --region "$AWS_REGION" \
+            --query "Parameter.Value" \
+            --output text)
+
+          REDIS_PORT=$(aws ssm get-parameter \
+            --name "/aims/dev/redis/port" \
+            --region "$AWS_REGION" \
+            --query "Parameter.Value" \
+            --output text)
+
           for VALUE in \
             "$RDS_SECRET_ARN" \
             "$RDS_HOST" \
             "$RDS_PORT" \
             "$MAIN_DB_NAME" \
             "$SAMPLE_DB_NAME" \
-            "$JWT_SECRET_KEY"; do
+            "$JWT_SECRET_KEY" \
+            "$REDIS_HOST" \
+            "$REDIS_PORT"; do
 
             if [ -z "$VALUE" ] || [ "$VALUE" = "None" ]; then
               echo "Required backend SSM parameter is empty"
@@ -177,6 +191,8 @@ jobs:
           echo "MAIN_DB_NAME=$MAIN_DB_NAME" >> "$GITHUB_ENV"
           echo "SAMPLE_DB_NAME=$SAMPLE_DB_NAME" >> "$GITHUB_ENV"
           echo "JWT_SECRET_KEY=$JWT_SECRET_KEY" >> "$GITHUB_ENV"
+          echo "REDIS_HOST=$REDIS_HOST" >> "$GITHUB_ENV"
+          echo "REDIS_PORT=$REDIS_PORT" >> "$GITHUB_ENV"
 
       - name: Create or update backend Kubernetes Secret
         run: |
@@ -219,6 +235,8 @@ jobs:
             --from-literal=SAMPLE_DB_USERNAME="$DB_USERNAME" \
             --from-literal=SAMPLE_DB_PASSWORD="$DB_PASSWORD" \
             --from-literal=JWT_SECRET_KEY="$JWT_SECRET_KEY" \
+            --from-literal=REDIS_HOST="$REDIS_HOST" \
+            --from-literal=REDIS_PORT="$REDIS_PORT" \
             --dry-run=client \
             -o yaml |
           kubectl apply -f -
