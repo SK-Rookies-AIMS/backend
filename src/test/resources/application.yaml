@@ -45,3 +45,6 @@ app:
       maximum-pool-size: 3
       minimum-idle: 1
       pool-name: test-sample-db-pool
+
+external:
+  assembly-url: http://localhost:8082
