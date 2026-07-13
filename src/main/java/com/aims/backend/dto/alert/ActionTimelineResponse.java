@@ -12,7 +12,7 @@ import lombok.Getter;
 @Builder
 @Getter
 public class ActionTimelineResponse {
-    private String actionId;
+    private Long actionId;
     private String empNo;
     private String empName;
     private UserRole empRole;
