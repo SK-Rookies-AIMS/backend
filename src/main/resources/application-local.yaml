@@ -1,11 +1,37 @@
 logging:
   level:
     root: info
-    com.aims.assembly: debug
+    com.aims.backend: debug
     org.hibernate.SQL: WARN
     org.hibernate.orm.jdbc.bind: WARN
+
   file:
     path: ${LOG_PATH:logs/local}
+
+spring:
+  data:
+    redis:
+      host: localhost
+      port: 16379
+      timeout: 3s
+
+  kafka:
+    consumer:
+      auto-offset-reset: latest
+
+app:
+
+  kafka:
+    consumer:
+      agv-group-id: main-agv-group-local
+
+  agv:
+    dispatch-scheduler:
+      enabled: false             # 배차 스케줄러 중지
+
+    transport-scheduler:
+      enabled: true              # ShedLock 운행 스케줄러만 실행
+      fixed-delay-ms: 1000
 
 management:
   health:

@@ -23,7 +23,8 @@ public class ManufacturingAnalysisConsumer {
 
     @KafkaListener(
             topics = "factory.manufacturing.analysis",
-            groupId = "main-agv-group"
+            groupId = "${app.kafka.consumer.agv-group-id}",
+            concurrency = "2"
     )
     public void consume(String message) {
 
