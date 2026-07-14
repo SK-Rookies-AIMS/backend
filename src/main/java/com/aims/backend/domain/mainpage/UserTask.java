@@ -35,9 +35,6 @@ public class UserTask extends BaseEntity {
     @Column(name = "task_title", nullable = false, length = 255)
     private String taskTitle;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "task_status", nullable = false, length = 20)
-    private TaskStatus taskStatus;
 
     @Column(name = "scheduled_at", nullable = false)
     private LocalDateTime scheduledAt;

@@ -1,6 +1,5 @@
 package com.aims.backend.dto.mainpage;
 
-import com.aims.backend.domain.mainpage.TaskStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -21,10 +20,7 @@ public class UserTaskResponse {
         @Schema(description = "업무명", example = "프레스 라인 점검")
         private String taskTitle;
 
-        @Schema(description = "업무 상태", example = "TODO")
-        private TaskStatus taskStatus;
-
         @Schema(description = "업무 시간", example = "2026-06-11T09:00:00")
-        private LocalDateTime scheduledAt;
+        private String scheduledAt;
     }
 }

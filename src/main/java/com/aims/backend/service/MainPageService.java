@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -23,6 +24,8 @@ public class MainPageService {
     private final UserTaskRepository mainPageUserTaskRepository;
     private final InspectionSummaryRepository inspectionSummaryRepository;
 
+    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
+
     public List<UserTaskResponse.MainPageTaskDTO> getUserTasks(Long userId) {
         LocalDateTime currentTime = LocalDateTime.now()
                                         .withMinute(0)
@@ -33,8 +36,7 @@ public class MainPageService {
         return userTasks.stream()
                 .map(task -> UserTaskResponse.MainPageTaskDTO.builder()
                         .taskTitle(task.getTaskTitle())
-                        .taskStatus(task.getTaskStatus())
-                        .scheduledAt(task.getScheduledAt())
+                        .scheduledAt(task.getScheduledAt().format(formatter))
                         .build())
                 .collect(Collectors.toList());
     }
