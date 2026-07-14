@@ -23,7 +23,8 @@ spring:
       port: 6379
       timeout: ${REDIS_TIMEOUT:3s}
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    bootstrap-servers:
+      - ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
 
     properties:
       security.protocol: SASL_SSL
@@ -85,7 +86,9 @@ app:
     host: ${OPENSEARCH_HOST:localhost}
     port: ${OPENSEARCH_PORT:9200}
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    bootstrap-servers:
+      - ${KAFKA_BOOTSTRAP_SERVER_1:localhost:9092}
+      - ${KAFKA_BOOTSTRAP_SERVER_2:localhost:9092}
     group-id: ${KAFKA_GROUP_ID:main-dev}
     auto-offset-reset: ${KAFKA_AUTO_OFFSET_RESET:earliest}
     listeners-enabled: ${KAFKA_LISTENERS_ENABLED:true}
