@@ -87,8 +87,8 @@ app:
     port: ${OPENSEARCH_PORT:9200}
   kafka:
     bootstrap-servers:
-      - ${KAFKA_BOOTSTRAP_SERVER_1}
-      - ${KAFKA_BOOTSTRAP_SERVER_2}
+      - ${KAFKA_BOOTSTRAP_SERVER_1:localhost:9092}
+      - ${KAFKA_BOOTSTRAP_SERVER_2:localhost:9092}
     group-id: ${KAFKA_GROUP_ID:main-dev}
     auto-offset-reset: ${KAFKA_AUTO_OFFSET_RESET:earliest}
     listeners-enabled: ${KAFKA_LISTENERS_ENABLED:true}
