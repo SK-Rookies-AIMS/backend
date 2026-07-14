@@ -22,6 +22,8 @@ public class AlertEventConsumer {
             groupId = "${app.kafka.group-id:backend-local}"
     )
     public void consume(String message) {
+        log.info("===== Kafka Alert Message Received =====");
+        log.info("rawMessage={}", message);
 
         log.info("Alert Kafka message received. eventId={}", eventId(message));
         try {
