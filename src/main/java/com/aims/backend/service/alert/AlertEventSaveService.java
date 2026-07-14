@@ -244,7 +244,7 @@ public class AlertEventSaveService {
                 .severity(calculatedAlert.severity())
                 .title(truncate(calculatedAlert.title(), 100))
                 .contents(truncate(calculatedAlert.contents(), 500))
-                .imageUrl(truncate(calculatedAlert.imageUrl(), 500))
+                .imageUrl(calculatedAlert.imageUrl())
                 .actionStatus(calculatedAlert.actionStatus())
                 .scoreCalculatedAt(calculatedAlert.scoreCalculatedAt())
                 .build();
