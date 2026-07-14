@@ -62,12 +62,12 @@ public interface AlertEventRepository extends JpaRepository<AlertEvent, String>,
 
     @Query("""
             SELECT COUNT(e) AS totalCount,
-                   SUM(e.priorityScore) AS priorityScoreSum,
-                   COUNT(e.priorityScore) AS priorityScoreCount,
-                   SUM(e.riskScore) AS riskScoreSum,
-                   COUNT(e.riskScore) AS riskScoreCount,
-                   SUM(e.occurrenceScore) AS occurrenceScoreSum,
-                   COUNT(e.occurrenceScore) AS occurrenceScoreCount,
+                   SUM(CASE WHEN e.actionStatus = :incompleteStatus THEN e.priorityScore ELSE 0 END) AS priorityScoreSum,
+                   COUNT(CASE WHEN e.actionStatus = :incompleteStatus THEN e.priorityScore ELSE NULL END) AS priorityScoreCount,
+                   SUM(CASE WHEN e.actionStatus = :incompleteStatus THEN e.riskScore ELSE 0 END) AS riskScoreSum,
+                   COUNT(CASE WHEN e.actionStatus = :incompleteStatus THEN e.riskScore ELSE NULL END) AS riskScoreCount,
+                   SUM(CASE WHEN e.actionStatus = :incompleteStatus THEN e.occurrenceScore ELSE 0 END) AS occurrenceScoreSum,
+                   COUNT(CASE WHEN e.actionStatus = :incompleteStatus THEN e.occurrenceScore ELSE NULL END) AS occurrenceScoreCount,
                    SUM(CASE WHEN e.actionStatus = :completedStatus THEN 1 ELSE 0 END) AS completedCount
             FROM AlertEvent e
             WHERE e.createdAt >= :from
@@ -76,6 +76,7 @@ public interface AlertEventRepository extends JpaRepository<AlertEvent, String>,
     PrioritySummaryProjection findPrioritySummary(
             @Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to,
+            @Param("incompleteStatus") AlertActionStatus incompleteStatus,
             @Param("completedStatus") AlertActionStatus completedStatus
     );
 }

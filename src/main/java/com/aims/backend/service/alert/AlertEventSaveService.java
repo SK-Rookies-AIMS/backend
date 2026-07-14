@@ -133,6 +133,7 @@ public class AlertEventSaveService {
                 eventKey(root, alertType, processCode, equipmentId, title, eventId);
         String imageUrl =
                 text(root, "imageUrl", "image_url");
+
         BigDecimal riskScore =
                 score(root, BigDecimal.ZERO, BigDecimal.valueOf(100), "riskScore", "risk_score");
         if (riskScore == null) {
@@ -202,6 +203,7 @@ public class AlertEventSaveService {
                 );
 
         try {
+            log.info("Kafka Message = {}", message);
             log.info(
                     "Alert websocket publish start. destination={}, eventId={}",
                     AlertWebSocketPublisher.ALERT_DESTINATION,
