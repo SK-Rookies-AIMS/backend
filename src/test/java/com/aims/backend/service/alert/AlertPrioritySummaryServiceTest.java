@@ -38,6 +38,7 @@ class AlertPrioritySummaryServiceTest {
         when(alertEventRepository.findPrioritySummary(
                 any(LocalDateTime.class),
                 any(LocalDateTime.class),
+                eq(AlertActionStatus.INCOMPLETE),
                 eq(AlertActionStatus.COMPLETED)
         )).thenReturn(projection);
         when(projection.getTotalCount()).thenReturn(4L);
@@ -63,6 +64,7 @@ class AlertPrioritySummaryServiceTest {
         when(alertEventRepository.findPrioritySummary(
                 any(LocalDateTime.class),
                 any(LocalDateTime.class),
+                eq(AlertActionStatus.INCOMPLETE),
                 eq(AlertActionStatus.COMPLETED)
         )).thenReturn(projection);
         when(projection.getTotalCount()).thenReturn(0L);
@@ -80,6 +82,7 @@ class AlertPrioritySummaryServiceTest {
         when(alertEventRepository.findPrioritySummary(
                 any(LocalDateTime.class),
                 any(LocalDateTime.class),
+                eq(AlertActionStatus.INCOMPLETE),
                 eq(AlertActionStatus.COMPLETED)
         )).thenReturn(projection);
         when(projection.getTotalCount()).thenReturn(2L);
@@ -96,6 +99,7 @@ class AlertPrioritySummaryServiceTest {
         when(alertEventRepository.findPrioritySummary(
                 any(LocalDateTime.class),
                 any(LocalDateTime.class),
+                eq(AlertActionStatus.INCOMPLETE),
                 eq(AlertActionStatus.COMPLETED)
         )).thenReturn(projection);
         when(projection.getTotalCount()).thenReturn(2L);
