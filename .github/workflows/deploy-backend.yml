@@ -254,7 +254,7 @@ jobs:
             --from-literal=JWT_SECRET_KEY="$JWT_SECRET_KEY" \
             --from-literal=REDIS_HOST="$REDIS_HOST" \
             --from-literal=REDIS_PORT="$REDIS_PORT" \
-            --from-literal=KAFKA_BOOTSTRAP_SERVER_1="$KAFKA_BOOTSTRAP_SERVER_2" \
+            --from-literal=KAFKA_BOOTSTRAP_SERVER_1="$KAFKA_BOOTSTRAP_SERVER_1" \
             --from-literal=KAFKA_BOOTSTRAP_SERVER_2="$KAFKA_BOOTSTRAP_SERVER_2" \
             --dry-run=client \
             -o yaml |
