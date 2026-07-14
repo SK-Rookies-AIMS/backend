@@ -5,10 +5,12 @@ spring:
       port: ${REDIS_PORT:6379}
       timeout: ${REDIS_TIMEOUT:3s}
 
+  # Spring Boot 자동 설정이 참조할 Kafka 주소
   kafka:
     bootstrap-servers:
-      - ${KAFKA_BOOTSTRAP_SERVER_1:localhost:9092}
-      - ${KAFKA_BOOTSTRAP_SERVER_2:localhost:9092}
+      - ${KAFKA_BOOTSTRAP_SERVER_1}
+      - ${KAFKA_BOOTSTRAP_SERVER_2}
+
 
 app:
   redis:
@@ -20,15 +22,19 @@ app:
     host: ${OPENSEARCH_HOST:localhost}
     port: ${OPENSEARCH_PORT:9200}
 
+  # Backend의 KafkaConfig.java가 실제로 읽는 설정
   kafka:
     bootstrap-servers:
-      - ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+      - ${KAFKA_BOOTSTRAP_SERVER_1}
+      - ${KAFKA_BOOTSTRAP_SERVER_2}
 
-    group-id: ${KAFKA_GROUP_ID:assembly-dev}
+    group-id: ${KAFKA_GROUP_ID:main-dev}
     auto-offset-reset: ${KAFKA_AUTO_OFFSET_RESET:earliest}
+    listeners-enabled: ${KAFKA_LISTENERS_ENABLED:true}
 
     consumer:
       agv-group-id: ${AGV_CONSUMER_GROUP_ID:main-agv-group}
+
 
 logging:
   level:
@@ -36,8 +42,6 @@ logging:
     com.aims.backend: debug
     org.hibernate.SQL: debug
 
-  file:
-    path: ${LOG_PATH:logs/dev}
 
 management:
   health:
