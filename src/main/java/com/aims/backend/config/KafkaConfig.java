@@ -28,6 +28,14 @@ public class KafkaConfig {
 
     private final KafkaCustomProperties kafkaCustomProperties;
 
+    private String getBootstrapServers() {
+
+        return String.join(
+                ",",
+                kafkaCustomProperties.getBootstrapServers()
+        );
+    }
+
     @Bean
     public ProducerFactory<String, String> producerFactory() {
 
@@ -35,7 +43,7 @@ public class KafkaConfig {
 
         properties.put(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
-                kafkaCustomProperties.getBootstrapServers()
+                getBootstrapServers()
         );
 
         properties.put(
