@@ -131,8 +131,11 @@ public class AlertEventSaveService {
                 defaultContents(alertType, processCode, equipmentId, text(root, "contents", "message", "description"));
         String eventKey =
                 eventKey(root, alertType, processCode, equipmentId, title, eventId);
-        String imageUrl =
-                text(root, "imageUrl", "image_url");
+        String imageUrl = root.hasNonNull("imageUrl")
+                ? root.get("imageUrl").asText()
+                : root.hasNonNull("image_url")
+                ? root.get("image_url").asText()
+                : null;
         BigDecimal riskScore =
                 score(root, BigDecimal.ZERO, BigDecimal.valueOf(100), "riskScore", "risk_score");
         if (riskScore == null) {
