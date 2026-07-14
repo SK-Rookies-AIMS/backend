@@ -25,7 +25,12 @@ public class AlertPrioritySummaryService {
         LocalDateTime from = to.minusDays(days);
 
         AlertEventRepository.PrioritySummaryProjection summary =
-                alertEventRepository.findPrioritySummary(from, to, AlertActionStatus.COMPLETED);
+                alertEventRepository.findPrioritySummary(
+                        from,
+                        to,
+                        AlertActionStatus.INCOMPLETE,
+                        AlertActionStatus.COMPLETED
+                );
 
         if (summary == null || summary.getTotalCount() == 0) {
             return emptyResponse(days);
