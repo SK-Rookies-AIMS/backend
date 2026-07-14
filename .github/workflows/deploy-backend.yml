@@ -166,11 +166,18 @@ jobs:
             --query "Parameter.Value" \
             --output text)
           
-          KAFKA_BOOTSTRAP_SERVERS=$(aws ssm get-parameter \
-            --name "/aims/dev/msk/bootstrap-servers" \
-            --region "$AWS_REGION" \
-            --query "Parameter.Value" \
-            --output text)
+          KAFKA_BOOTSTRAP_SERVER_1=$(aws ssm get-parameter \
+          --name "/aims/dev/msk/bootstrap-server-1" \
+          --region "$AWS_REGION" \
+          --query "Parameter.Value" \
+          --output text)
+          
+          
+          KAFKA_BOOTSTRAP_SERVER_2=$(aws ssm get-parameter \
+          --name "/aims/dev/msk/bootstrap-server-2" \
+          --region "$AWS_REGION" \
+          --query "Parameter.Value" \
+          --output text)
           
           for VALUE in \
             "$RDS_SECRET_ARN" \
@@ -181,7 +188,8 @@ jobs:
             "$JWT_SECRET_KEY" \
             "$REDIS_HOST" \
             "$REDIS_PORT" \
-            "$KAFKA_BOOTSTRAP_SERVERS"; do
+            "$KAFKA_BOOTSTRAP_SERVER_1" \
+            "$KAFKA_BOOTSTRAP_SERVER_2"; do
 
             if [ -z "$VALUE" ] || [ "$VALUE" = "None" ]; then
               echo "Required backend SSM parameter is empty"
@@ -200,7 +208,8 @@ jobs:
           echo "JWT_SECRET_KEY=$JWT_SECRET_KEY" >> "$GITHUB_ENV"
           echo "REDIS_HOST=$REDIS_HOST" >> "$GITHUB_ENV"
           echo "REDIS_PORT=$REDIS_PORT" >> "$GITHUB_ENV"
-          echo "KAFKA_BOOTSTRAP_SERVERS=$KAFKA_BOOTSTRAP_SERVERS" >> "$GITHUB_ENV"
+          echo "KAFKA_BOOTSTRAP_SERVER_1=$KAFKA_BOOTSTRAP_SERVER_1" >> "$GITHUB_ENV"
+          echo "KAFKA_BOOTSTRAP_SERVER_2=$KAFKA_BOOTSTRAP_SERVER_2" >> "$GITHUB_ENV"
 
       - name: Create or update backend Kubernetes Secret
         run: |
@@ -245,7 +254,8 @@ jobs:
             --from-literal=JWT_SECRET_KEY="$JWT_SECRET_KEY" \
             --from-literal=REDIS_HOST="$REDIS_HOST" \
             --from-literal=REDIS_PORT="$REDIS_PORT" \
-            --from-literal=KAFKA_BOOTSTRAP_SERVERS="$KAFKA_BOOTSTRAP_SERVERS" \
+            --from-literal=KAFKA_BOOTSTRAP_SERVER_1="$KAFKA_BOOTSTRAP_SERVER_1" \
+            --from-literal=KAFKA_BOOTSTRAP_SERVER_2="$KAFKA_BOOTSTRAP_SERVER_2" \
             --dry-run=client \
             -o yaml |
           kubectl apply -f -
