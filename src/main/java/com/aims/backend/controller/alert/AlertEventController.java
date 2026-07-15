@@ -6,6 +6,11 @@ import com.aims.backend.dto.alert.AlertActionUpdateRequest;
 import com.aims.backend.dto.alert.AlertEventResponse;
 import com.aims.backend.dto.alert.AlertPrioritySummaryResponse;
 import com.aims.backend.dto.alert.AlertSearchRequest;
+import com.aims.backend.dto.eventAnalysis.RecommendationResponse;
+import com.aims.backend.service.eventAnalysis.AlertRecommendationService;
+import io.swagger.v3.oas.annotations.Operation;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
 import com.aims.backend.dto.alert.ActionTimelineResponse;
 import com.aims.backend.service.alert.AlertPrioritySummaryService;
 import com.aims.backend.dto.alert.ActionTimelineCreateRequest;
@@ -42,6 +47,7 @@ public class AlertEventController {
     private final AlertPrioritySummaryService alertPrioritySummaryService;
     private final ActionTimelineService actionTimelineService;
     private final TokenProvider tokenProvider;
+    private final AlertRecommendationService alertRecommendationService;
 
     @GetMapping
     public ApiResponse<Page<AlertEventResponse>> getAlerts(@ModelAttribute AlertSearchRequest request) {
@@ -98,4 +104,21 @@ public class AlertEventController {
 
         return ApiResponse.success(actionTimelineService.createTimeline(logNo, request, principal));
     }
+
+    @Operation(
+                summary = "유사 장애 조치 추천",
+                description = "현재 이벤트와 가장 유사한 과거 이벤트를 찾아 추천 조치 방법을 반환합니다."
+        )
+        @GetMapping("/{logNo}/recommendation")
+        public ApiResponse<RecommendationResponse> getRecommendation(
+                @PathVariable String logNo) {
+
+            RecommendationResponse response =
+                    alertRecommendationService.getRecommendation(logNo);
+
+            return ApiResponse.success(
+                    response,
+                    "유사 장애 추천 조회 성공"
+            );
+        }
 }
