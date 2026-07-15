@@ -53,6 +53,25 @@ management:
       enabled: false
 
 app:
+  alert:
+    image:
+      process-images:
+        PRESS:
+          danger-equipment: s3://event-image-858507113889-ap-northeast-2-an/press_1.png
+          danger-process: s3://event-image-858507113889-ap-northeast-2-an/press_2.png
+          warning: s3://event-image-858507113889-ap-northeast-2-an/press_3.png
+        BODY:
+          danger-equipment: s3://event-image-858507113889-ap-northeast-2-an/body_1.png
+          danger-process: s3://event-image-858507113889-ap-northeast-2-an/body_2.png
+          warning: s3://event-image-858507113889-ap-northeast-2-an/body_3.png
+        PAINT:
+          danger-equipment: s3://event-image-858507113889-ap-northeast-2-an/paint_1.png
+          danger-process: s3://event-image-858507113889-ap-northeast-2-an/paint_2.png
+          warning: s3://event-image-858507113889-ap-northeast-2-an/paint_3.png
+        ASSEMBLY:
+          danger-equipment: s3://event-image-858507113889-ap-northeast-2-an/assamble_1.png
+          danger-process: s3://event-image-858507113889-ap-northeast-2-an/assamble_2.png
+          warning: s3://event-image-858507113889-ap-northeast-2-an/assamble_3.png
   datasource:
     main:
       driver-class-name: ${MAIN_DB_DRIVER_CLASS_NAME:com.mysql.cj.jdbc.Driver}
