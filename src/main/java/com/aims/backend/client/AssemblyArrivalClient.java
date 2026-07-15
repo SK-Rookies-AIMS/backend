@@ -41,7 +41,7 @@ public class AssemblyArrivalClient {
                 Assembly 도착 API 요청
                 
                 url={}
-                eventId={}
+                {}
                 
                 ==============================
                 
