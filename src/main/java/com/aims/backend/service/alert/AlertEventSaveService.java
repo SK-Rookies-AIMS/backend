@@ -1,5 +1,6 @@
 package com.aims.backend.service.alert;
 
+import com.aims.backend.config.AlertImageProperties;
 import com.aims.backend.domain.alert.AlertActionStatus;
 import com.aims.backend.domain.alert.AlertEvent;
 import com.aims.backend.domain.alert.AlertSeverity;
@@ -131,8 +132,6 @@ public class AlertEventSaveService {
                 defaultContents(alertType, processCode, equipmentId, text(root, "contents", "message", "description"));
         String eventKey =
                 eventKey(root, alertType, processCode, equipmentId, title, eventId);
-        String imageUrl =
-                text(root, "imageUrl", "image_url");
 
         BigDecimal riskScore =
                 score(root, BigDecimal.ZERO, BigDecimal.valueOf(100), "riskScore", "risk_score");
@@ -152,6 +151,9 @@ public class AlertEventSaveService {
                 calculateSeverity(priorityScore);
         LocalDateTime scoreCalculatedAt =
                 LocalDateTime.now();
+
+        String imageUrl =
+                alertImageProperties.resolve(processCode, alertType, severity);
 
         log.info(
                 "Adaptive eRPN calculated. eventId={}, riskScore={}, occurrenceScore={}, detectionScore={}, priorityScore={}, severity={}",
@@ -181,6 +183,7 @@ public class AlertEventSaveService {
                 scoreCalculatedAt
         );
     }
+    private final AlertImageProperties alertImageProperties;
 
     private void publishRealtimeAlert(CalculatedAlert calculatedAlert) {
 
