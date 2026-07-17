@@ -3,6 +3,7 @@ package com.aims.backend.dto.dashboard;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 @Getter
@@ -25,9 +26,9 @@ public class AgvOperationResponse {
 
     private Integer delaySeconds;
 
-    private LocalDateTime startedAt;
+    private Instant startedAt;
 
-    private LocalDateTime expectedArrivalTime;
+    private Instant expectedArrivalTime;
 
     private String routeCode;
 

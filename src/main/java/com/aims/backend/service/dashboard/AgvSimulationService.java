@@ -13,6 +13,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -196,8 +197,8 @@ public class AgvSimulationService {
             Long carMasterId,
             RouteInfo routeInfo
     ) {
-        LocalDateTime startedAt = LocalDateTime.now();
-        LocalDateTime expectedArrivalTime =
+        Instant startedAt = Instant.now();
+        Instant expectedArrivalTime =
                 startedAt.plusSeconds(MOVE_DURATION_SECONDS);
 
         AgvRealtimeState state = AgvRealtimeState.builder()
