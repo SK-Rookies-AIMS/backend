@@ -19,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -204,7 +205,7 @@ public class DashboardService {
                         agv.getId()
                 );
 
-        realtimeState.calculateProgress(LocalDateTime.now());
+        realtimeState.calculateProgress(Instant.now());
 
         return new AgvOperationResponse(
                 agv.getId(),
