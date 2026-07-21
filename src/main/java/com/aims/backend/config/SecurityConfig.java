@@ -39,23 +39,22 @@ public class SecurityConfig {
                         .accessDeniedHandler(accessDeniedHandler)
                 )
                 .authorizeHttpRequests(auth -> auth
+
+                        // 인증 필요 없는 API
                         .requestMatchers(
-                                "/",
-                                "/api/health",
-                                "/api/test",
-                                "/actuator/health/**",
-                                "/swagger-ui/**",
-                                "/v3/api-docs/**",
-                                "/swagger-resources/**",
-                                "/webjars/**",
                                 "/api/auth/login",
                                 "/api/auth/signup",
                                 "/api/auth/refresh",
-                                "/api/event/**",
-                                "/api/main/process-flow",
-                                "/ws/**",
-                                "/api/ws/**"
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**"
                         ).permitAll()
+
+                        // USER 이상
+                        .requestMatchers("/api/manufacturing/**").authenticated()
+                        .requestMatchers("/api/events/**").authenticated()
+                        .requestMatchers("/api/inspection/**").authenticated()
+                        .requestMatchers("/api/main/**").authenticated()
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
