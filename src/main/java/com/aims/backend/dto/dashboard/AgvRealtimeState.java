@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Getter
 @Setter
@@ -38,9 +38,9 @@ public class AgvRealtimeState {
 
     private Integer delaySeconds;
 
-    private LocalDateTime startedAt;
+    private Instant startedAt;
 
-    private LocalDateTime expectedArrivalTime;
+    private Instant expectedArrivalTime;
 
     public static AgvRealtimeState empty(Long agvId) {
         return AgvRealtimeState.builder()
@@ -50,7 +50,7 @@ public class AgvRealtimeState {
                 .build();
     }
 
-    public void calculateProgress(LocalDateTime now) {
+    public void calculateProgress(Instant now) {
         if (startedAt == null || expectedArrivalTime == null) {
             this.progressRate = 0.0;
             return;

@@ -13,7 +13,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -196,8 +196,8 @@ public class AgvSimulationService {
             Long carMasterId,
             RouteInfo routeInfo
     ) {
-        LocalDateTime startedAt = LocalDateTime.now();
-        LocalDateTime expectedArrivalTime =
+        Instant startedAt = Instant.now();
+        Instant expectedArrivalTime =
                 startedAt.plusSeconds(MOVE_DURATION_SECONDS);
 
         AgvRealtimeState state = AgvRealtimeState.builder()
@@ -283,8 +283,8 @@ public class AgvSimulationService {
             Long carMasterId,
             RouteInfo routeInfo
     ) {
-        LocalDateTime startedAt = LocalDateTime.now();
-        LocalDateTime expectedEndTime =
+        Instant startedAt = Instant.now();
+        Instant expectedEndTime =
                 startedAt.plusSeconds(UNLOADING_DURATION_SECONDS);
 
         AgvRealtimeState state = AgvRealtimeState.builder()
@@ -347,8 +347,8 @@ public class AgvSimulationService {
             Long agvId,
             RouteInfo routeInfo
     ) {
-        LocalDateTime startedAt = LocalDateTime.now();
-        LocalDateTime expectedArrivalTime =
+        Instant startedAt = Instant.now();
+        Instant expectedArrivalTime =
                 startedAt.plusSeconds(RETURN_DURATION_SECONDS);
 
         AgvRealtimeState state = AgvRealtimeState.builder()
@@ -508,7 +508,7 @@ public class AgvSimulationService {
         AgvRealtimeState state =
                 agvRealtimeRedisService.get(agv.getId());
 
-        state.calculateProgress(LocalDateTime.now());
+        state.calculateProgress(Instant.now());
 
         return new AgvOperationResponse(
                 agv.getId(),

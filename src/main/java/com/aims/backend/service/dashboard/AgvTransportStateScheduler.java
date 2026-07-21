@@ -9,7 +9,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Slf4j
 @Component
@@ -37,7 +37,7 @@ public class AgvTransportStateScheduler {
     public void advanceExpiredStates() {
         LockAssert.assertLocked();
 
-        LocalDateTime now = LocalDateTime.now();
+        Instant now = Instant.now();
 
         for (AgvRealtimeState state : agvRealtimeRedisService.findAll()) {
             if (!isExpired(state, now)) {
@@ -59,7 +59,7 @@ public class AgvTransportStateScheduler {
 
     private boolean isExpired(
             AgvRealtimeState state,
-            LocalDateTime now
+            Instant now
     ) {
         return state != null
                 && state.getAgvId() != null
