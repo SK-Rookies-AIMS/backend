@@ -36,6 +36,49 @@ flowchart LR
 현재 Backend 코드에는 `KafkaTemplate` Producer Bean이 정의되어 있지만, 애플리케이션 서비스에서 Kafka로 메시지를 발행하는 호출은 확인되지 않습니다. 따라서 실제 입력 Producer는 외부 제조/분석 서비스로 보는 것이 맞습니다.
 
 ## 알림 처리
+<table>
+  <tr>
+    <th align="center" width="50%">알림 우선순위 구조</th>
+    <th align="center" width="50%">알림 목록</th>
+  </tr>
+  <tr>
+    <td align="center" valign="middle">
+      <img
+        width="100%"
+        alt="알림 우선순위 구조"
+        src="https://github.com/user-attachments/assets/3904ce4a-794d-46fb-b5f2-1d5ecef65e93"
+      />
+    </td>
+    <td align="center" valign="middle">
+      <img
+        width="100%"
+        alt="알림 목록"
+        src="https://github.com/user-attachments/assets/7d5e0620-d89d-4cd5-bb2b-b0581a05ef4e"
+      />
+    </td>
+  </tr>
+
+  <tr>
+    <th align="center" width="50%">알림 조치</th>
+    <th align="center" width="50%">알림 상세</th>
+  </tr>
+  <tr>
+    <td align="center" valign="middle">
+      <img
+        width="100%"
+        alt="알림 조치"
+        src="https://github.com/user-attachments/assets/7eea0f61-5bdf-4b07-8db4-b91353237202"
+      />
+    </td>
+    <td align="center" valign="middle">
+      <img
+        width="100%"
+        alt="알림 조치 후 상세"
+        src="https://github.com/user-attachments/assets/99de086e-f817-445e-ad7f-f37d17bae989"
+      />
+    </td>
+  </tr>
+</table>
 
 알림은 `factory.manufacturing.alert` 토픽을 `AlertEventConsumer`가 소비합니다. `AlertEventSaveService`는 JSON을 정규화하고 중복 이벤트를 걸러낸 뒤 점수를 계산하여 DB에 저장합니다.
 
@@ -88,6 +131,7 @@ sequenceDiagram
 | 유사 장애 조치 추천 | `GET /api/event/{logNo}/recommendation` |
 
 ## AGV 배차 및 운반
+<img width="2490" height="1186" alt="AGV" src="https://github.com/user-attachments/assets/cefa013b-83f0-424b-bb96-04ec057348e3" />
 
 AGV는 분석 결과를 직접 Kafka로 재발행하지 않고, 분석 이벤트를 소비한 뒤 Redis 대기열과 DB 상태를 조합하여 시뮬레이션합니다.
 
@@ -109,7 +153,7 @@ flowchart TD
     A -- 아니오 --> R[Queue 선두 재적재 후 대기]
     A -- 예 --> DB[agv_operation을 MOVING으로 변경]
     DB --> RT[Redis realtime 상태 저장]
-    RT --> WS[/topic/agv publish]
+    RT --> WS["/topic/agv publish"]
 ```
 
 ### Route와 Redis 자료구조
@@ -177,7 +221,7 @@ flowchart LR
     ALERT -->|일반 backend group<br/>main-*/backend-*| NC[AlertEventConsumer]
     AC --> RQ[Redis AGV Queue]
     NC --> DB[MySQL AlertEvent]
-    NC --> WS[STOMP /topic/alerts]
+    NC --> WS["STOMP /topic/alerts"]
 ```
 
 ### Kafka Client 동작
