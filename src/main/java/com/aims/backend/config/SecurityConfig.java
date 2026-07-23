@@ -51,7 +51,10 @@ public class SecurityConfig {
                                 "/api/auth/login",
                                 "/api/auth/signup",
                                 "/api/auth/refresh",
-                                "/api/event/**"
+                                "/api/event/**",
+                                "/api/main/process-flow",
+                                "/ws/**",
+                                "/api/ws/**"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )

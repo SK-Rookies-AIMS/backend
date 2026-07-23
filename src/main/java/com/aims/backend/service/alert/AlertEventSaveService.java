@@ -1,5 +1,6 @@
 package com.aims.backend.service.alert;
 
+import com.aims.backend.config.AlertImageProperties;
 import com.aims.backend.domain.alert.AlertActionStatus;
 import com.aims.backend.domain.alert.AlertEvent;
 import com.aims.backend.domain.alert.AlertSeverity;
@@ -131,6 +132,7 @@ public class AlertEventSaveService {
                 defaultContents(alertType, processCode, equipmentId, text(root, "contents", "message", "description"));
         String eventKey =
                 eventKey(root, alertType, processCode, equipmentId, title, eventId);
+
         BigDecimal riskScore =
                 score(root, BigDecimal.ZERO, BigDecimal.valueOf(100), "riskScore", "risk_score");
         if (riskScore == null) {
@@ -149,6 +151,9 @@ public class AlertEventSaveService {
                 calculateSeverity(priorityScore);
         LocalDateTime scoreCalculatedAt =
                 LocalDateTime.now();
+
+        String imageUrl =
+                alertImageProperties.resolve(processCode, alertType, severity);
 
         log.info(
                 "Adaptive eRPN calculated. eventId={}, riskScore={}, occurrenceScore={}, detectionScore={}, priorityScore={}, severity={}",
@@ -173,10 +178,12 @@ public class AlertEventSaveService {
                 severity,
                 title,
                 contents,
+                imageUrl,
                 AlertActionStatus.INCOMPLETE,
                 scoreCalculatedAt
         );
     }
+    private final AlertImageProperties alertImageProperties;
 
     private void publishRealtimeAlert(CalculatedAlert calculatedAlert) {
 
@@ -199,6 +206,7 @@ public class AlertEventSaveService {
                 );
 
         try {
+            log.info("Kafka Message = {}", message);
             log.info(
                     "Alert websocket publish start. destination={}, eventId={}",
                     AlertWebSocketPublisher.ALERT_DESTINATION,
@@ -241,6 +249,7 @@ public class AlertEventSaveService {
                 .severity(calculatedAlert.severity())
                 .title(truncate(calculatedAlert.title(), 100))
                 .contents(truncate(calculatedAlert.contents(), 500))
+                .imageUrl(calculatedAlert.imageUrl())
                 .actionStatus(calculatedAlert.actionStatus())
                 .scoreCalculatedAt(calculatedAlert.scoreCalculatedAt())
                 .build();
@@ -578,6 +587,7 @@ public class AlertEventSaveService {
             AlertSeverity severity,
             String title,
             String contents,
+            String imageUrl,
             AlertActionStatus actionStatus,
             LocalDateTime scoreCalculatedAt
     ) {

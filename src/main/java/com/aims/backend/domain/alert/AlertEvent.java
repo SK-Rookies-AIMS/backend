@@ -81,6 +81,9 @@ public class AlertEvent {
     @Column(name = "score_calculated_at")
     private LocalDateTime scoreCalculatedAt;
 
+    @Column(name = "image_url")
+    private String imageUrl;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

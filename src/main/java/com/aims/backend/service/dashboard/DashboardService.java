@@ -19,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -79,10 +80,8 @@ public class DashboardService {
                 .mapToDouble(equipment -> {
                     switch (equipment.getCurrentStatus()) {
                         case RUNNING: return 5.0;
-                        case IDLE: return 4.0;
-                        case MAINTENANCE: return 3.0;
+                        case WARNING: return 4.0;
                         case STOPPED: return 0.0;
-                        case FAULT: return 0.0;
                         default: return 0.0;
                     }
                 }).sum();
@@ -148,9 +147,8 @@ public class DashboardService {
                 agvOperationRepository.count();
 
         long movingCount =
-                agvOperationRepository.countByAgvStatus(
-                        AgvStatus.MOVING
-                );
+                agvOperationRepository.countByAgvStatus(AgvStatus.MOVING)
+                        + agvOperationRepository.countByAgvStatus(AgvStatus.UNLOADING);
 
         long waitingCount =
                 agvOperationRepository.countByAgvStatus(
@@ -207,8 +205,11 @@ public class DashboardService {
                         agv.getId()
                 );
 
+        realtimeState.calculateProgress(Instant.now());
+
         return new AgvOperationResponse(
                 agv.getId(),
+                realtimeState.getEventId(),
                 agv.getCarMasterId(),
                 agv.getAgvStatus().name(),
 
@@ -217,6 +218,9 @@ public class DashboardService {
 
                 realtimeState.getProgressRate(),
                 realtimeState.getDelaySeconds(),
+
+                realtimeState.getStartedAt(),
+                realtimeState.getExpectedArrivalTime(),
 
                 agv.getRouteCode(),
                 agv.getLaneNo(),

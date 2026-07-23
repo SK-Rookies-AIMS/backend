@@ -10,6 +10,37 @@ import org.springframework.http.HttpStatus;
 @AllArgsConstructor
 public enum ErrorStatus implements BaseErrorCode {
 
+
+    RECOMMENDATION_ANALYSIS_NOT_FOUND(
+        HttpStatus.NOT_FOUND,
+        "RECOMMEND404_1",
+        "분석 결과를 찾을 수 없습니다."
+    ),
+
+    RECOMMENDATION_PRESS_ANALYSIS_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "RECOMMEND404_2",
+            "PRESS 분석 결과를 찾을 수 없습니다."
+    ),
+
+    RECOMMENDATION_SIMILAR_EVENT_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "RECOMMEND404_3",
+            "유사 이벤트를 찾을 수 없습니다."
+    ),
+
+    RECOMMENDATION_ALERT_EVENT_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "RECOMMEND404_4",
+            "유사 이벤트 정보를 찾을 수 없습니다."
+    ),
+
+    RECOMMENDATION_TIMELINE_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "RECOMMEND404_5",
+            "유사 이벤트의 조치 이력이 존재하지 않습니다."
+    ),
+
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "COMMON500", "서버 내부 오류가 발생했습니다."),
     BAD_REQUEST(HttpStatus.BAD_REQUEST, "COMMON400", "잘못된 요청입니다."),
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "COMMON401", "인증이 필요합니다."),

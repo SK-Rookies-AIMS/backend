@@ -19,11 +19,12 @@ spring:
         format_sql: true
   data:
     redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
+      host: aims-dev-redis.80mdpk.ng.0001.apn2.cache.amazonaws.com
+      port: 6379
       timeout: ${REDIS_TIMEOUT:3s}
   kafka:
-    bootstrap-servers: ${MSK_BOOTSTRAP_SERVERS}
+    bootstrap-servers:
+      - ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
 
     properties:
       security.protocol: SASL_SSL
@@ -52,6 +53,25 @@ management:
       enabled: false
 
 app:
+  alert:
+    image:
+      process-images:
+        PRESS:
+          danger-equipment: s3://event-image-858507113889-ap-northeast-2-an/press_1.png
+          danger-process: s3://event-image-858507113889-ap-northeast-2-an/press_2.png
+          warning: s3://event-image-858507113889-ap-northeast-2-an/press_3.png
+        BODY:
+          danger-equipment: s3://event-image-858507113889-ap-northeast-2-an/body_1.png
+          danger-process: s3://event-image-858507113889-ap-northeast-2-an/body_2.png
+          warning: s3://event-image-858507113889-ap-northeast-2-an/body_3.png
+        PAINT:
+          danger-equipment: s3://event-image-858507113889-ap-northeast-2-an/paint_1.png
+          danger-process: s3://event-image-858507113889-ap-northeast-2-an/paint_2.png
+          warning: s3://event-image-858507113889-ap-northeast-2-an/paint_3.png
+        ASSEMBLY:
+          danger-equipment: s3://event-image-858507113889-ap-northeast-2-an/assamble_1.png
+          danger-process: s3://event-image-858507113889-ap-northeast-2-an/assamble_2.png
+          warning: s3://event-image-858507113889-ap-northeast-2-an/assamble_3.png
   datasource:
     main:
       driver-class-name: ${MAIN_DB_DRIVER_CLASS_NAME:com.mysql.cj.jdbc.Driver}
@@ -69,6 +89,14 @@ app:
       maximum-pool-size: ${SAMPLE_DB_MAXIMUM_POOL_SIZE:5}
       minimum-idle: ${SAMPLE_DB_MINIMUM_IDLE:1}
       pool-name: ${SAMPLE_DB_POOL_NAME:sample-db-pool}
+  agv:
+    dispatch-scheduler:
+      enabled: true
+      fixed-delay-ms: 1000
+
+    transport-scheduler:
+      enabled: true
+      fixed-delay-ms: 1000
   redis:
     cache:
       ttl: ${REDIS_CACHE_TTL:10m}
@@ -77,10 +105,17 @@ app:
     host: ${OPENSEARCH_HOST:localhost}
     port: ${OPENSEARCH_PORT:9200}
   kafka:
-    bootstrap-servers: ${MSK_BOOTSTRAP_SERVERS}
+    bootstrap-servers:
+      - ${KAFKA_BOOTSTRAP_SERVER_1}
+      - ${KAFKA_BOOTSTRAP_SERVER_2}
+
     group-id: ${KAFKA_GROUP_ID:main-dev}
     auto-offset-reset: ${KAFKA_AUTO_OFFSET_RESET:earliest}
     listeners-enabled: ${KAFKA_LISTENERS_ENABLED:true}
+    analysis-topic: factory.manufacturing.analysis
+
+    consumer:
+      agv-group-id: ${AGV_CONSUMER_GROUP_ID:main-agv-group}
 
     security-protocol: SASL_SSL
     sasl-mechanism: AWS_MSK_IAM
@@ -95,3 +130,6 @@ jwt:
   expiration:
     access: ${JWT_ACCESS_EXPIRATION:3600000}
     refresh: ${JWT_REFRESH_EXPIRATION:1209600000}
+
+external:
+  assembly-url: ${ASSEMBLY_SERVICE_URL:http://localhost:8082}
