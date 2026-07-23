@@ -30,6 +30,8 @@ class AlertEventTest {
         alertEvent.updateAction("user01", AlertActionStatus.NOT_NEEDED, "sensor noise");
 
         assertThat(alertEvent.getActionStatus()).isEqualTo(AlertActionStatus.NOT_NEEDED);
+        assertThat(alertEvent.getActionBy()).isEqualTo("user01");
+        assertThat(alertEvent.getReason()).isEqualTo("sensor noise");
         assertThat(alertEvent.getResolvedAt()).isNotNull();
     }
 
