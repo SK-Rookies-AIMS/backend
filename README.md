@@ -201,22 +201,23 @@ AGV 상태가 변경될 때 전체 AGV 목록을 `/topic/agv`로 publish합니�
 | --- | ---: | --- | --- | --- |
 | `factory.manufacturing.alert` | 2 | `AlertEventConsumer` | `app.kafka.group-id` | 알림 저장 및 WebSocket 전달 |
 | `factory.manufacturing.analysis` | 2 | `ManufacturingAnalysisConsumer` | `app.kafka.consumer.agv-group-id` | 정상 공정 분석 이벤트 기반 AGV 배차 |
-| `factory.manufacturing.raw` | 4 | 현재 Backend Listener 없음 | - | 토픽 설정에 정의된 원천 이벤트 채널 |
-| `factory.manufacturing.equipment` | 2 | 현재 Backend Listener 없음 | - | 토픽 설정에 정의된 설비 이벤트 채널 |
+| `factory.manufacturing.raw` | 4 | Assembly Service 측 처리 | Assembly Service Group | 제조 원천 이벤트 수집·분석 입력 |
+| `factory.manufacturing.equipment` | 2 | Assembly Service 측 처리 | Assembly Service Group | 설비 이벤트 수집·분석 입력 |
 
-`raw`와 `equipment`는 `KafkaCustomProperties`의 기본 토픽 목록에는 있으나 현재 Backend Consumer가 연결되어 있지 않습니다. 토픽 목록에 등록되어 있다는 사실과 실제 소비 중인 토픽을 구분해야 합니다.
+`raw`와 `equipment`는 Assembly Service에서 제조 원천·설비 정보를 처리하는 채널입니다. 이 Backend는 해당 원천 이벤트를 직접 소비하기보다, 분석 결과가 발행된 `analysis`와 알림 결과가 발행된 `alert` 토픽을 소비합니다.
 
 ```mermaid
 flowchart LR
-    subgraph K[Kafka / AWS MSK]
+    subgraph K["Kafka / AWS MSK"]
         RAW[factory.manufacturing.raw<br/>4 partitions]
         ANALYSIS[factory.manufacturing.analysis<br/>2 partitions]
         ALERT[factory.manufacturing.alert<br/>2 partitions]
         EQUIP[factory.manufacturing.equipment<br/>2 partitions]
     end
 
-    RAW -. 현재 Backend Listener 없음 .-> B[ AIMS Backend ]
-    EQUIP -. 현재 Backend Listener 없음 .-> B
+    AS[Assembly Service]
+    RAW -->|Assembly Service Group| AS
+    EQUIP -->|Assembly Service Group| AS
     ANALYSIS -->|AGV group<br/>main-agv-group*| AC[ManufacturingAnalysisConsumer<br/>concurrency=2]
     ALERT -->|일반 backend group<br/>main-*/backend-*| NC[AlertEventConsumer]
     AC --> RQ[Redis AGV Queue]
@@ -237,6 +238,9 @@ flowchart LR
 - Listener 전체 비활성화: `app.kafka.listeners-enabled=false`
 
 `AlertEventConsumer`는 `app.kafka.listeners-enabled`가 true일 때만 등록됩니다. 반면 AGV 분석 Consumer는 코드상 `app.kafka.consumer.agv-group-id`를 사용하므로 해당 프로퍼티와 Kafka 접속 정보가 실행 환경에 있어야 합니다.
+
+### 데이터 흐름도
+<img width="10217" height="5316" alt="데이터 기능 흐름도" src="https://github.com/user-attachments/assets/f329c398-0e11-4e21-b1c4-b83d46aaf211" />
 
 ## WebSocket / STOMP
 
